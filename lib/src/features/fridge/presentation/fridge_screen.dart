@@ -1,137 +1,204 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_animate/flutter_animate.dart';
-import 'package:nutriary_fe/src/features/fridge/data/fridge_repository.dart';
 import 'package:lucide_icons/lucide_icons.dart';
+import 'package:nutriary_fe/src/features/fridge/presentation/bloc/fridge_bloc.dart';
+import 'package:nutriary_fe/src/features/fridge/presentation/bloc/fridge_event.dart';
+import 'package:nutriary_fe/src/features/fridge/presentation/bloc/fridge_state.dart';
+import 'package:nutriary_fe/src/features/group/presentation/bloc/group_bloc.dart';
+import 'package:nutriary_fe/src/features/group/presentation/bloc/group_state.dart';
 
-class FridgeScreen extends ConsumerStatefulWidget {
+class FridgeScreen extends StatefulWidget {
   const FridgeScreen({super.key});
 
   @override
-  ConsumerState<FridgeScreen> createState() => _FridgeScreenState();
+  State<FridgeScreen> createState() => _FridgeScreenState();
 }
 
-class _FridgeScreenState extends ConsumerState<FridgeScreen> {
-  String _filter = 'All'; // All, Expiring
-
+class _FridgeScreenState extends State<FridgeScreen> {
   @override
   Widget build(BuildContext context) {
-    final fridgeAsync = ref.watch(fridgeItemsProvider);
-
-    return Scaffold(
-      backgroundColor: Colors.grey[50],
-      appBar: AppBar(
-        title: const Text('Tủ lạnh của bạn'),
-        centerTitle: false,
-        elevation: 0,
-        backgroundColor: Colors.white,
-        foregroundColor: Colors.black,
-      ),
-      floatingActionButton: FloatingActionButton.extended(
-        onPressed: () {
-          showDialog(
-            context: context,
-            builder: (_) => const _AddFridgeItemDialog(),
-          ).then((_) => ref.refresh(fridgeItemsProvider));
-        },
-        label: const Text('Thêm món'),
-        icon: const Icon(LucideIcons.plus),
-      ),
-      body: Column(
-        children: [
-          // Filter Chips
-          Container(
-            color: Colors.white,
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-            child: Row(
-              children: [
-                _buildFilterChip('Tất cả', 'All'),
-                const SizedBox(width: 8),
-                _buildFilterChip(
-                  'Sắp hết hạn',
-                  'Expiring',
-                  color: Colors.redAccent,
-                ),
-              ],
+    return BlocListener<GroupBloc, GroupState>(
+      listenWhen: (previous, current) =>
+          previous.selectedGroupId != current.selectedGroupId,
+      listener: (context, state) {
+        context.read<FridgeBloc>().add(LoadFridgeItems(state.selectedGroupId));
+      },
+      child: Scaffold(
+        backgroundColor: Colors.grey[50],
+        appBar: AppBar(
+          title: const Text('Tủ lạnh của bạn'),
+          centerTitle: false,
+          elevation: 0,
+          backgroundColor: Colors.white,
+          foregroundColor: Colors.black,
+        ),
+        floatingActionButton: FloatingActionButton.extended(
+          onPressed: () {
+            showDialog(
+              context: context,
+              builder: (_) => const _AddFridgeItemDialog(),
+            );
+          },
+          label: const Text('Thêm món'),
+          icon: const Icon(LucideIcons.plus),
+        ),
+        body: Column(
+          children: [
+            // Filter Chips
+            Container(
+              color: Colors.white,
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+              child: BlocBuilder<FridgeBloc, FridgeState>(
+                builder: (context, state) {
+                  return Row(
+                    children: [
+                      _buildFilterChip(
+                        context,
+                        'Tất cả',
+                        FridgeFilter.all,
+                        isSelected: state.filter == FridgeFilter.all,
+                      ),
+                      const SizedBox(width: 8),
+                      _buildFilterChip(
+                        context,
+                        'Sắp hết hạn',
+                        FridgeFilter.expiring,
+                        isSelected: state.filter == FridgeFilter.expiring,
+                        color: Colors.redAccent,
+                      ),
+                    ],
+                  );
+                },
+              ),
             ),
-          ),
 
-          // Grid
-          Expanded(
-            child: fridgeAsync.when(
-              data: (items) {
-                // Apply Filter
-                final filteredItems = items.where((item) {
-                  if (_filter == 'All') return true;
-                  if (_filter == 'Expiring') {
-                    final useWithin = item['use_within'];
-                    if (useWithin == null) return false;
-                    final date = DateTime.tryParse(useWithin);
-                    if (date == null) return false;
-                    final daysLeft = date.difference(DateTime.now()).inDays;
-                    return daysLeft <= 3;
+            // Content
+            Expanded(
+              child: BlocConsumer<FridgeBloc, FridgeState>(
+                listener: (context, state) {
+                  if (state.errorMessage != null && !state.isLoadingAction) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(content: Text('Lỗi: ${state.errorMessage}')),
+                    );
                   }
-                  return true;
-                }).toList();
+                },
+                builder: (context, state) {
+                  if (state.status == FridgeStatus.loading) {
+                    return const Center(child: CircularProgressIndicator());
+                  }
+                  if (state.status == FridgeStatus.failure) {
+                    return Center(child: Text('Lỗi: ${state.errorMessage}'));
+                  }
 
-                if (filteredItems.isEmpty) {
-                  return Center(
-                    child: Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        Icon(
-                          LucideIcons.snowflake,
-                          size: 64,
-                          color: Colors.blue[100],
-                        ),
-                        const SizedBox(height: 16),
-                        Text(
-                          _filter == 'All'
-                              ? 'Tủ lạnh trống :('
-                              : 'Không có gì sắp hỏng!',
-                          style: TextStyle(color: Colors.grey[600]),
-                        ),
-                      ],
+                  final filteredItems = state.filteredItems;
+
+                  if (filteredItems.isEmpty) {
+                    return Center(
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Icon(
+                            LucideIcons.snowflake,
+                            size: 64,
+                            color: Colors.blue[100],
+                          ),
+                          const SizedBox(height: 16),
+                          Text(
+                            state.filter == FridgeFilter.all
+                                ? 'Tủ lạnh trống :('
+                                : 'Không có gì sắp hỏng!',
+                            style: TextStyle(color: Colors.grey[600]),
+                          ),
+                        ],
+                      ),
+                    );
+                  }
+
+                  // Group by Category (UI Logic)
+                  final grouped = <String, List<dynamic>>{};
+                  for (var item in filteredItems) {
+                    final cat = item.categoryName;
+                    if (!grouped.containsKey(cat)) grouped[cat] = [];
+                    grouped[cat]!.add(item);
+                  }
+
+                  final sortedKeys = grouped.keys.toList()..sort();
+
+                  return RefreshIndicator(
+                    onRefresh: () async {
+                      final groupId = context
+                          .read<GroupBloc>()
+                          .state
+                          .selectedGroupId;
+                      context.read<FridgeBloc>().add(LoadFridgeItems(groupId));
+                    },
+                    child: ListView.builder(
+                      padding: const EdgeInsets.only(bottom: 80),
+                      itemCount: sortedKeys.length,
+                      itemBuilder: (context, index) {
+                        final cat = sortedKeys[index];
+                        final catItems = grouped[cat]!;
+                        return Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Padding(
+                              padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
+                              child: Text(
+                                cat.toUpperCase(),
+                                style: TextStyle(
+                                  fontWeight: FontWeight.bold,
+                                  color: Colors.grey[700],
+                                  letterSpacing: 1.1,
+                                ),
+                              ),
+                            ),
+                            GridView.builder(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 16,
+                              ),
+                              shrinkWrap: true,
+                              physics: const NeverScrollableScrollPhysics(),
+                              gridDelegate:
+                                  const SliverGridDelegateWithFixedCrossAxisCount(
+                                    crossAxisCount: 2,
+                                    childAspectRatio: 0.8,
+                                    crossAxisSpacing: 16,
+                                    mainAxisSpacing: 16,
+                                  ),
+                              itemCount: catItems.length,
+                              itemBuilder: (c, i) =>
+                                  _buildFridgeItemCard(c, catItems[i], i),
+                            ),
+                          ],
+                        );
+                      },
                     ),
                   );
-                }
-
-                return RefreshIndicator(
-                  onRefresh: () async =>
-                      ref.refresh(fridgeItemsProvider.future),
-                  child: GridView.builder(
-                    padding: const EdgeInsets.all(16),
-                    gridDelegate:
-                        const SliverGridDelegateWithFixedCrossAxisCount(
-                          crossAxisCount: 2,
-                          childAspectRatio: 0.8,
-                          crossAxisSpacing: 16,
-                          mainAxisSpacing: 16,
-                        ),
-                    itemCount: filteredItems.length,
-                    itemBuilder: (context, index) {
-                      final item = filteredItems[index];
-                      return _buildFridgeItemCard(context, item, index);
-                    },
-                  ),
-                );
-              },
-              loading: () => const Center(child: CircularProgressIndicator()),
-              error: (err, stack) => Center(child: Text('Lỗi: $err')),
+                },
+              ),
             ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }
 
-  Widget _buildFilterChip(String label, String value, {Color? color}) {
-    final isSelected = _filter == value;
+  Widget _buildFilterChip(
+    BuildContext context,
+    String label,
+    FridgeFilter value, {
+    bool isSelected = false,
+    Color? color,
+  }) {
     return ChoiceChip(
       label: Text(label),
       selected: isSelected,
       onSelected: (selected) {
-        if (selected) setState(() => _filter = value);
+        if (selected) {
+          final filterStr = value == FridgeFilter.all ? 'All' : 'Expiring';
+          context.read<FridgeBloc>().add(ChangeFilter(filterStr));
+        }
       },
       selectedColor:
           color?.withOpacity(0.2) ??
@@ -148,32 +215,31 @@ class _FridgeScreenState extends ConsumerState<FridgeScreen> {
   }
 
   Widget _buildFridgeItemCard(BuildContext context, dynamic item, int index) {
-    final foodName = item['food']?['name'] ?? 'Món lạ';
-    final quantity = item['quantity'] ?? '1';
-    final imageUrl = item['food']?['foodImageUrl'];
-    final useWithinStr = item['use_within'];
+    // using dynamic for item b/c I used List<dynamic> in grouping, but actually it is FridgeItem
+    final foodName = item.foodName;
+    final quantity = item.quantity.toString();
+    final imageUrl = item.imageUrl;
+    final useWithin = item.useWithin;
 
     // Calculate Days Left
     int? daysLeft;
     Color statusColor = Colors.green;
     String statusText = 'Tươi';
 
-    if (useWithinStr != null) {
-      final date = DateTime.tryParse(useWithinStr);
-      if (date != null) {
-        daysLeft = date.difference(DateTime.now()).inDays;
-        if (daysLeft < 0) {
-          statusColor = Colors.grey;
-          statusText = 'Hết hạn';
-        } else if (daysLeft <= 3) {
-          statusColor = Colors.red;
-          statusText = '$daysLeft ngày';
-        } else if (daysLeft <= 7) {
-          statusColor = Colors.orange;
-          statusText = '$daysLeft ngày';
-        } else {
-          statusText = '$daysLeft ngày';
-        }
+    if (useWithin != null) {
+      final diff = useWithin.difference(DateTime.now()).inDays;
+      daysLeft = diff;
+      if (diff < 0) {
+        statusColor = Colors.grey;
+        statusText = 'Hết hạn';
+      } else if (diff <= 3) {
+        statusColor = Colors.red;
+        statusText = '$diff ngày';
+      } else if (diff <= 7) {
+        statusColor = Colors.orange;
+        statusText = '$diff ngày';
+      } else {
+        statusText = '$diff ngày';
       }
     }
 
@@ -182,7 +248,7 @@ class _FridgeScreenState extends ConsumerState<FridgeScreen> {
         showDialog(
           context: context,
           builder: (_) => _EditFridgeItemDialog(item: item),
-        ).then((_) => ref.refresh(fridgeItemsProvider));
+        );
       },
       onLongPress: () {
         _showDeleteDialog(context, foodName);
@@ -305,16 +371,9 @@ class _FridgeScreenState extends ConsumerState<FridgeScreen> {
           FilledButton(
             style: FilledButton.styleFrom(backgroundColor: Colors.red),
             onPressed: () {
+              final groupId = context.read<GroupBloc>().state.selectedGroupId;
+              context.read<FridgeBloc>().add(RemoveItem(foodName, groupId));
               Navigator.pop(ctx);
-              ref
-                  .read(fridgeRepositoryProvider)
-                  .removeFridgeItem(foodName)
-                  .then((_) {
-                    ref.refresh(fridgeItemsProvider);
-                    ScaffoldMessenger.of(
-                      context,
-                    ).showSnackBar(SnackBar(content: Text('Đã xoá $foodName')));
-                  });
             },
             child: const Text('Xoá'),
           ),
@@ -324,53 +383,43 @@ class _FridgeScreenState extends ConsumerState<FridgeScreen> {
   }
 }
 
-class _EditFridgeItemDialog extends ConsumerStatefulWidget {
-  final dynamic item;
+class _EditFridgeItemDialog extends StatefulWidget {
+  final dynamic item; // FridgeItem
   const _EditFridgeItemDialog({required this.item});
   @override
-  ConsumerState<_EditFridgeItemDialog> createState() =>
-      _EditFridgeItemDialogState();
+  State<_EditFridgeItemDialog> createState() => _EditFridgeItemDialogState();
 }
 
-class _EditFridgeItemDialogState extends ConsumerState<_EditFridgeItemDialog> {
+class _EditFridgeItemDialogState extends State<_EditFridgeItemDialog> {
   late TextEditingController _qtyController;
   DateTime? _selectedDate;
-  bool _isLoading = false;
 
   @override
   void initState() {
     super.initState();
-    _qtyController = TextEditingController(text: widget.item['quantity']);
-    if (widget.item['use_within'] != null) {
-      _selectedDate = DateTime.tryParse(widget.item['use_within']);
-    }
+    _qtyController = TextEditingController(
+      text: widget.item.quantity.toString(),
+    );
+    _selectedDate = widget.item.useWithin;
   }
 
   Future<void> _save() async {
-    setState(() => _isLoading = true);
-    try {
-      await ref
-          .read(fridgeRepositoryProvider)
-          .updateFridgeItem(
-            widget.item['food']['name'],
-            quantity: _qtyController.text,
-            useWithin: _selectedDate,
-          );
-      if (mounted) Navigator.pop(context);
-    } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(SnackBar(content: Text('Lỗi: $e')));
-        setState(() => _isLoading = false);
-      }
-    }
+    final groupId = context.read<GroupBloc>().state.selectedGroupId;
+    context.read<FridgeBloc>().add(
+      UpdateItem(
+        foodName: widget.item.foodName,
+        quantity: _qtyController.text,
+        useWithin: _selectedDate,
+        groupId: groupId,
+      ),
+    );
+    Navigator.pop(context);
   }
 
   @override
   Widget build(BuildContext context) {
     return AlertDialog(
-      title: Text('Sửa ${widget.item['food']['name']}'),
+      title: Text('Sửa ${widget.item.foodName}'),
       content: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
@@ -414,97 +463,110 @@ class _EditFridgeItemDialogState extends ConsumerState<_EditFridgeItemDialog> {
           onPressed: () => Navigator.pop(context),
           child: const Text('Huỷ'),
         ),
-        FilledButton(
-          onPressed: _isLoading ? null : _save,
-          child: _isLoading
-              ? const CircularProgressIndicator(color: Colors.white)
-              : const Text('Lưu'),
-        ),
+        FilledButton(onPressed: _save, child: const Text('Lưu')),
       ],
     );
   }
 }
 
-class _AddFridgeItemDialog extends ConsumerStatefulWidget {
+class _AddFridgeItemDialog extends StatefulWidget {
   const _AddFridgeItemDialog();
   @override
-  ConsumerState<_AddFridgeItemDialog> createState() =>
-      _AddFridgeItemDialogState();
+  State<_AddFridgeItemDialog> createState() => _AddFridgeItemDialogState();
 }
 
-class _AddFridgeItemDialogState extends ConsumerState<_AddFridgeItemDialog> {
+class _AddFridgeItemDialogState extends State<_AddFridgeItemDialog> {
   final _foodController = TextEditingController();
   final _qtyController = TextEditingController();
   DateTime? _selectedDate;
+  String? _selectedCategory;
 
   Future<void> _add() async {
     if (_foodController.text.isEmpty) return;
-    try {
-      await ref
-          .read(fridgeRepositoryProvider)
-          .addFridgeItem(
-            _foodController.text,
-            _qtyController.text.isEmpty ? '1' : _qtyController.text,
-            _selectedDate,
-          );
-      if (mounted) Navigator.pop(context);
-    } catch (e) {
-      if (mounted)
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(SnackBar(content: Text('Lỗi: $e')));
-    }
+    final groupId = context.read<GroupBloc>().state.selectedGroupId;
+
+    context.read<FridgeBloc>().add(
+      AddItem(
+        foodName: _foodController.text,
+        quantity: _qtyController.text.isEmpty ? '1' : _qtyController.text,
+        useWithin: _selectedDate,
+        categoryName: _selectedCategory,
+        groupId: groupId,
+      ),
+    );
+    Navigator.pop(context);
   }
 
   @override
   Widget build(BuildContext context) {
     return AlertDialog(
       title: const Text('Thêm vào Tủ lạnh'),
-      content: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          TextField(
-            controller: _foodController,
-            decoration: const InputDecoration(
-              labelText: 'Tên thực phẩm',
-              prefixIcon: Icon(Icons.search),
-              border: OutlineInputBorder(),
-            ),
-          ),
-          const SizedBox(height: 12),
-          TextField(
-            controller: _qtyController,
-            decoration: const InputDecoration(
-              labelText: 'Số lượng',
-              prefixIcon: Icon(Icons.confirmation_number),
-              border: OutlineInputBorder(),
-            ),
-          ),
-          const SizedBox(height: 12),
-          InkWell(
-            onTap: () async {
-              final date = await showDatePicker(
-                context: context,
-                initialDate: DateTime.now().add(const Duration(days: 3)),
-                firstDate: DateTime.now(),
-                lastDate: DateTime.now().add(const Duration(days: 365)),
-              );
-              if (date != null) setState(() => _selectedDate = date);
-            },
-            child: InputDecorator(
+      content: SingleChildScrollView(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            TextField(
+              controller: _foodController,
               decoration: const InputDecoration(
-                labelText: 'Hạn sử dụng (Tuỳ chọn)',
+                labelText: 'Tên thực phẩm',
+                prefixIcon: Icon(Icons.search),
                 border: OutlineInputBorder(),
-                prefixIcon: Icon(Icons.calendar_today),
-              ),
-              child: Text(
-                _selectedDate != null
-                    ? "${_selectedDate!.day}/${_selectedDate!.month}/${_selectedDate!.year}"
-                    : 'Chọn ngày',
               ),
             ),
-          ),
-        ],
+            const SizedBox(height: 12),
+            // Category Dropdown
+            BlocBuilder<FridgeBloc, FridgeState>(
+              builder: (context, state) {
+                return DropdownButtonFormField<String>(
+                  value: _selectedCategory,
+                  decoration: const InputDecoration(
+                    labelText: 'Danh mục',
+                    border: OutlineInputBorder(),
+                    prefixIcon: Icon(Icons.category),
+                  ),
+                  items: state.categories
+                      .map((c) => DropdownMenuItem(value: c, child: Text(c)))
+                      .toList(),
+                  onChanged: (v) => setState(() => _selectedCategory = v),
+                );
+              },
+            ),
+            const SizedBox(height: 12),
+            TextField(
+              controller: _qtyController,
+              decoration: const InputDecoration(
+                labelText: 'Số lượng',
+                prefixIcon: Icon(Icons.confirmation_number),
+                border: OutlineInputBorder(),
+              ),
+              keyboardType: TextInputType.number,
+            ),
+            const SizedBox(height: 12),
+            InkWell(
+              onTap: () async {
+                final date = await showDatePicker(
+                  context: context,
+                  initialDate: DateTime.now().add(const Duration(days: 3)),
+                  firstDate: DateTime.now(),
+                  lastDate: DateTime.now().add(const Duration(days: 365)),
+                );
+                if (date != null) setState(() => _selectedDate = date);
+              },
+              child: InputDecorator(
+                decoration: const InputDecoration(
+                  labelText: 'Hạn sử dụng (Tuỳ chọn)',
+                  border: OutlineInputBorder(),
+                  prefixIcon: Icon(Icons.calendar_today),
+                ),
+                child: Text(
+                  _selectedDate != null
+                      ? "${_selectedDate!.day}/${_selectedDate!.month}/${_selectedDate!.year}"
+                      : 'Chọn ngày',
+                ),
+              ),
+            ),
+          ],
+        ),
       ),
       actions: [
         TextButton(
@@ -516,7 +578,3 @@ class _AddFridgeItemDialogState extends ConsumerState<_AddFridgeItemDialog> {
     );
   }
 }
-
-final fridgeItemsProvider = FutureProvider.autoDispose((ref) async {
-  return ref.read(fridgeRepositoryProvider).getFridgeItems();
-});

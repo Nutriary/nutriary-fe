@@ -1,267 +1,388 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-import 'package:nutriary_fe/src/features/group/data/group_repository.dart';
-import 'package:nutriary_fe/src/features/shopping_list/data/shopping_repository.dart';
-import 'package:nutriary_fe/src/features/fridge/data/fridge_repository.dart';
-import 'package:nutriary_fe/src/features/recipe/data/recipe_repository.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:nutriary_fe/src/features/group/presentation/bloc/group_bloc.dart';
+import 'package:nutriary_fe/src/features/group/presentation/bloc/group_event.dart';
+import 'package:nutriary_fe/src/features/group/presentation/bloc/group_state.dart';
+import 'package:nutriary_fe/src/features/fridge/presentation/bloc/fridge_bloc.dart';
+import 'package:nutriary_fe/src/features/fridge/presentation/bloc/fridge_event.dart';
+import 'package:nutriary_fe/src/features/fridge/presentation/bloc/fridge_state.dart';
+import 'package:nutriary_fe/src/features/recipe/presentation/bloc/recipe_bloc.dart';
+import 'package:nutriary_fe/src/features/recipe/presentation/bloc/recipe_event.dart';
+import 'package:nutriary_fe/src/features/recipe/presentation/bloc/recipe_state.dart';
+import 'package:nutriary_fe/src/features/shopping_list/presentation/bloc/shopping_bloc.dart';
+import 'package:nutriary_fe/src/features/shopping_list/presentation/bloc/shopping_event.dart';
+import 'package:nutriary_fe/src/features/shopping_list/presentation/bloc/shopping_state.dart';
 import 'package:nutriary_fe/src/common_widgets/user_drawer.dart';
 
-class HomeScreen extends ConsumerStatefulWidget {
+class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
 
   @override
-  ConsumerState<HomeScreen> createState() => _HomeScreenState();
+  State<HomeScreen> createState() => _HomeScreenState();
 }
 
-class _HomeScreenState extends ConsumerState<HomeScreen> {
+class _HomeScreenState extends State<HomeScreen> {
   final _scaffoldKey = GlobalKey<ScaffoldState>();
+  final _scrollController = ScrollController();
+
+  Future<void> _onRefresh() async {
+    // Trigger refreshes
+    final groupState = context.read<GroupBloc>().state;
+    context.read<GroupBloc>().add(LoadGroups());
+    if (groupState.selectedGroup != null) {
+      context.read<FridgeBloc>().add(
+        LoadFridgeItems(groupState.selectedGroup!.id),
+      );
+    }
+    // Shopping lists are refreshed via GroupBloc (as they are inside Group)
+    // Recipes are global
+    context.read<RecipeBloc>().add(LoadAllRecipes());
+  }
 
   @override
   Widget build(BuildContext context) {
-    final groupAsync = ref.watch(myGroupProvider);
-    final fridgeAsync = ref.watch(fridgeSummaryProvider);
-    final recipesAsync = ref.watch(featuredRecipesProvider);
-
     return Scaffold(
       key: _scaffoldKey,
       drawer: const UserDrawer(),
-      body: RefreshIndicator(
-        onRefresh: () async {
-          ref.refresh(myGroupProvider);
-          ref.refresh(fridgeSummaryProvider);
-          ref.refresh(featuredRecipesProvider);
+      body: BlocListener<GroupBloc, GroupState>(
+        listener: (context, state) {
+          if (state.selectedGroup != null) {
+            // Load fridge items when group is loaded/selected
+            // We can use distinct check to avoid loop, but LoadFridgeItems is safe
+            context.read<FridgeBloc>().add(
+              LoadFridgeItems(state.selectedGroup!.id),
+            );
+          }
         },
-        child: CustomScrollView(
-          slivers: [
-            // App Bar & Greeting
-            SliverAppBar(
-              expandedHeight: 120.0,
-              floating: true,
-              pinned: true,
-              flexibleSpace: FlexibleSpaceBar(
-                titlePadding: const EdgeInsets.only(left: 16, bottom: 16),
-                title: const Text(
-                  'Xin chào!',
-                  style: TextStyle(
-                    color: Colors.black87,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-                background: Container(
-                  decoration: BoxDecoration(
-                    gradient: LinearGradient(
-                      begin: Alignment.topLeft,
-                      end: Alignment.bottomRight,
-                      colors: [
-                        Theme.of(context).colorScheme.primaryContainer,
-                        Colors.white,
-                      ],
+        child: RefreshIndicator(
+          onRefresh: _onRefresh,
+          child: CustomScrollView(
+            controller: _scrollController,
+            slivers: [
+              // App Bar & Greeting
+              SliverAppBar(
+                expandedHeight: 120.0,
+                floating: true,
+                pinned: true,
+                flexibleSpace: FlexibleSpaceBar(
+                  titlePadding: const EdgeInsets.only(left: 16, bottom: 16),
+                  title: const Text(
+                    'Xin chào!',
+                    style: TextStyle(
+                      color: Colors.black87,
+                      fontWeight: FontWeight.bold,
                     ),
                   ),
-                ),
-              ),
-              actions: [
-                Padding(
-                  padding: const EdgeInsets.only(right: 16.0),
-                  child: GestureDetector(
-                    onTap: () => _scaffoldKey.currentState?.openDrawer(),
-                    child: const CircleAvatar(
-                      backgroundColor: Colors.white,
-                      child: Icon(Icons.person, color: Colors.black87),
+                  background: Container(
+                    decoration: BoxDecoration(
+                      gradient: LinearGradient(
+                        begin: Alignment.topLeft,
+                        end: Alignment.bottomRight,
+                        colors: [
+                          Theme.of(context).colorScheme.primaryContainer,
+                          Colors.white,
+                        ],
+                      ),
                     ),
                   ),
                 ),
-              ],
-            ),
-
-            // Summary Cards (Fridge & Lists)
-            SliverToBoxAdapter(
-              child: Padding(
-                padding: const EdgeInsets.all(16.0),
-                child: Row(
-                  children: [
-                    Expanded(
-                      child: _buildSummaryCard(
-                        context,
-                        title: 'Tủ lạnh',
-                        icon: Icons.kitchen,
-                        color: Colors.blueAccent,
-                        content: fridgeAsync.when(
-                          data: (items) => '${items.length} món',
-                          loading: () => '...',
-                          error: (_, __) => 'Lỗi',
-                        ),
-                        subContent: fridgeAsync.when(
-                          data: (items) {
-                            final expiring = items.where((i) {
-                              if (i['useWithin'] == null) return false;
-                              final date = DateTime.tryParse(i['useWithin']);
-                              if (date == null) return false;
-                              final diff = date
-                                  .difference(DateTime.now())
-                                  .inDays;
-                              return diff <= 3 && diff >= 0;
-                            }).length;
-                            return expiring > 0
-                                ? '$expiring sắp hết hạn'
-                                : 'Tươi ngon';
-                          },
-                          loading: () => '',
-                          error: (_, __) => '',
-                        ),
-                        onTap: () => context.go('/tabs/fridge'),
+                actions: [
+                  Padding(
+                    padding: const EdgeInsets.only(right: 16.0),
+                    child: GestureDetector(
+                      onTap: () => _scaffoldKey.currentState?.openDrawer(),
+                      child: const CircleAvatar(
+                        backgroundColor: Colors.white,
+                        child: Icon(Icons.person, color: Colors.black87),
                       ),
                     ),
-                    const SizedBox(width: 16),
-                    Expanded(
-                      child: _buildSummaryCard(
-                        context,
-                        title: 'Đi chợ',
-                        icon: Icons.shopping_cart,
-                        color: Colors.orangeAccent,
-                        content: groupAsync.when(
-                          data: (g) =>
-                              '${(g?['shoppingLists'] as List? ?? []).length} danh sách',
-                          loading: () => '...',
-                          error: (_, __) => 'Lỗi',
-                        ),
-                        subContent: 'Chạm để xem',
-                        onTap: () {
-                          // Scroll to lists or do nothing specific (lists are below)
-                        },
-                      ),
-                    ),
-                  ],
-                ),
+                  ),
+                ],
               ),
-            ),
 
-            // Featured Recipes Header
-            SliverToBoxAdapter(
-              child: Padding(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 16.0,
-                  vertical: 8.0,
-                ),
-                child: Row(
-                  children: [
-                    Text(
-                      'Gợi ý hôm nay',
-                      style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                    const Spacer(),
-                    TextButton(
-                      onPressed: () => context.go('/tabs/recipe'),
-                      child: const Text('Xem tất cả'),
-                    ),
-                  ],
-                ),
-              ),
-            ),
-
-            // Featured Recipes List
-            SliverToBoxAdapter(
-              child: SizedBox(
-                height: 180,
-                child: recipesAsync.when(
-                  data: (recipes) {
-                    if (recipes.isEmpty)
-                      return const Center(child: Text('Chưa có công thức'));
-                    return ListView.builder(
-                      scrollDirection: Axis.horizontal,
-                      padding: const EdgeInsets.symmetric(horizontal: 16),
-                      itemCount: recipes.length,
-                      itemBuilder: (context, index) {
-                        final recipe = recipes[index];
-                        return _buildRecipeCard(context, recipe);
-                      },
+              // Group & Content
+              BlocBuilder<GroupBloc, GroupState>(
+                builder: (context, groupState) {
+                  if (groupState.status == GroupStatus.loading &&
+                      groupState.groups.isEmpty) {
+                    return const SliverFillRemaining(
+                      child: Center(child: CircularProgressIndicator()),
                     );
-                  },
-                  loading: () =>
-                      const Center(child: CircularProgressIndicator()),
-                  error: (e, _) => Center(child: Text('Lỗi tải món ăn')),
-                ),
-              ),
-            ),
+                  }
 
-            // Shopping Lists Header
-            SliverToBoxAdapter(
-              child: Padding(
-                padding: const EdgeInsets.fromLTRB(16, 24, 16, 8),
-                child: Row(
-                  children: [
-                    Text(
-                      'Danh sách mua sắm',
-                      style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                    const Spacer(),
-                    IconButton(
-                      icon: const Icon(
-                        Icons.add_circle,
-                        color: Colors.green,
-                        size: 28,
-                      ),
-                      onPressed: () {
-                        showDialog(
-                          context: context,
-                          builder: (_) => const _CreateListDialog(),
-                        ).then((_) => ref.refresh(myGroupProvider));
-                      },
-                    ),
-                  ],
-                ),
-              ),
-            ),
+                  final group =
+                      groupState.selectedGroup ??
+                      (groupState.groups.isNotEmpty
+                          ? groupState.groups.first
+                          : null);
 
-            // Shopping Lists
-            groupAsync.when(
-              data: (group) {
-                if (group == null) {
-                  return SliverFillRemaining(
-                    child: Center(
-                      child: FilledButton(
-                        onPressed: () {
-                          ref.read(createGroupProvider.future).then((_) {
-                            ref.refresh(myGroupProvider);
-                          });
-                        },
-                        child: const Text('Tạo nhóm gia đình'),
+                  if (group == null) {
+                    // No Group State
+                    return SliverFillRemaining(
+                      hasScrollBody: false,
+                      child: Padding(
+                        padding: const EdgeInsets.all(32.0),
+                        child: Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Icon(
+                              Icons.group_off_rounded,
+                              size: 80,
+                              color: Colors.grey[400],
+                            ),
+                            const SizedBox(height: 24),
+                            const Text(
+                              'Bạn chưa có nhóm gia đình',
+                              style: TextStyle(
+                                fontSize: 20,
+                                fontWeight: FontWeight.bold,
+                              ),
+                              textAlign: TextAlign.center,
+                            ),
+                            const SizedBox(height: 8),
+                            const Text(
+                              'Tạo nhóm để bắt đầu quản lý tủ lạnh và danh sách mua sắm cùng nhau!',
+                              textAlign: TextAlign.center,
+                              style: TextStyle(color: Colors.grey),
+                            ),
+                            const SizedBox(height: 32),
+                            FilledButton.icon(
+                              onPressed: () {
+                                context.read<GroupBloc>().add(
+                                  CreateGroup(),
+                                ); // Need CreateGroup event? Use dialog logic?
+                                // Legacy used ref.read(createGroupProvider).
+                                // GroupBloc should handle creation.
+                                // Actually, use CreateGroupDialog or similar?
+                                // Assuming we add a simple creation event/dialog here.
+                                _showCreateGroupDialog(context);
+                              },
+                              icon: const Icon(Icons.add),
+                              label: const Text('Tạo nhóm mới'),
+                              style: FilledButton.styleFrom(
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 32,
+                                  vertical: 16,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
                       ),
-                    ),
+                    );
+                  }
+
+                  // HAS GROUP -> Show Dashboard
+                  return SliverList(
+                    delegate: SliverChildListDelegate([
+                      // Summary Cards
+                      Padding(
+                        padding: const EdgeInsets.all(16.0),
+                        child: Row(
+                          children: [
+                            Expanded(
+                              child: BlocBuilder<FridgeBloc, FridgeState>(
+                                builder: (context, fridgeState) {
+                                  String content = '...';
+                                  String subContent = '';
+
+                                  if (fridgeState.status ==
+                                      FridgeStatus.success) {
+                                    content = '${fridgeState.items.length} món';
+                                    final expiring = fridgeState.items.where((
+                                      i,
+                                    ) {
+                                      if (i.useWithin == null) return false;
+                                      final date = i.useWithin!;
+                                      final diff = date
+                                          .difference(DateTime.now())
+                                          .inDays;
+                                      return diff <= 3 && diff >= 0;
+                                    }).length;
+                                    subContent = expiring > 0
+                                        ? '$expiring sắp hết hạn'
+                                        : 'Tươi ngon';
+                                  } else if (fridgeState.status ==
+                                      FridgeStatus.failure) {
+                                    content = '0 món';
+                                    subContent = 'Lỗi tải';
+                                  }
+
+                                  return _buildSummaryCard(
+                                    context,
+                                    title: 'Tủ lạnh',
+                                    icon: Icons.kitchen,
+                                    color: Colors.blueAccent,
+                                    content: content,
+                                    subContent: subContent,
+                                    onTap: () => context.go('/tabs/fridge'),
+                                  );
+                                },
+                              ),
+                            ),
+                            const SizedBox(width: 16),
+                            Expanded(
+                              child: _buildSummaryCard(
+                                context,
+                                title: 'Đi chợ',
+                                icon: Icons.shopping_cart,
+                                color: Colors.orangeAccent,
+                                content:
+                                    '${group.shoppingLists.length} danh sách',
+                                subContent: 'Chạm để xem',
+                                onTap: () {
+                                  _scrollController.animateTo(
+                                    500, // Estimated offset
+                                    duration: const Duration(milliseconds: 500),
+                                    curve: Curves.easeInOut,
+                                  );
+                                },
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+
+                      // Featured Recipes
+                      Padding(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 16.0,
+                          vertical: 8.0,
+                        ),
+                        child: Row(
+                          children: [
+                            Text(
+                              'Gợi ý hôm nay',
+                              style: Theme.of(context).textTheme.titleLarge
+                                  ?.copyWith(fontWeight: FontWeight.bold),
+                            ),
+                            const Spacer(),
+                            TextButton(
+                              onPressed: () => context.go('/tabs/recipe'),
+                              child: const Text('Xem tất cả'),
+                            ),
+                          ],
+                        ),
+                      ),
+                      SizedBox(
+                        height: 180,
+                        child: BlocBuilder<RecipeBloc, RecipeState>(
+                          builder: (context, recipeState) {
+                            if (recipeState.status == RecipeStatus.loading &&
+                                recipeState.recipes.isEmpty) {
+                              return const Center(
+                                child: CircularProgressIndicator(),
+                              );
+                            }
+                            if (recipeState.recipes.isEmpty) {
+                              return const Center(
+                                child: Text('Chưa có công thức'),
+                              );
+                            }
+
+                            final featured = recipeState.recipes
+                                .take(5)
+                                .toList();
+                            return ListView.builder(
+                              scrollDirection: Axis.horizontal,
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 16,
+                              ),
+                              itemCount: featured.length,
+                              itemBuilder: (context, index) {
+                                return _buildRecipeCard(
+                                  context,
+                                  featured[index],
+                                );
+                              },
+                            );
+                          },
+                        ),
+                      ),
+
+                      // Shopping Lists Header
+                      Padding(
+                        padding: const EdgeInsets.fromLTRB(16, 24, 16, 8),
+                        child: Row(
+                          children: [
+                            Text(
+                              'Danh sách mua sắm',
+                              style: Theme.of(context).textTheme.titleLarge
+                                  ?.copyWith(fontWeight: FontWeight.bold),
+                            ),
+                            const Spacer(),
+                            IconButton(
+                              icon: const Icon(
+                                Icons.add_circle,
+                                color: Colors.green,
+                                size: 28,
+                              ),
+                              onPressed: () {
+                                showDialog(
+                                  context: context,
+                                  builder: (_) =>
+                                      _CreateListDialog(groupId: group.id),
+                                ).then((result) {
+                                  if (result == true) {
+                                    context.read<GroupBloc>().add(LoadGroups());
+                                  }
+                                });
+                              },
+                            ),
+                          ],
+                        ),
+                      ),
+
+                      // Shopping Lists
+                      if (group.shoppingLists.isEmpty)
+                        const Padding(
+                          padding: EdgeInsets.all(16.0),
+                          child: Text('Chưa có danh sách nào. Hãy tạo mới!'),
+                        )
+                      else
+                        ...group.shoppingLists.map((list) {
+                          return _buildShoppingListTile(context, list);
+                        }),
+
+                      const SizedBox(height: 80),
+                    ]),
                   );
-                }
-                final lists = (group['shoppingLists'] as List?) ?? [];
-                if (lists.isEmpty) {
-                  return const SliverToBoxAdapter(
-                    child: Padding(
-                      padding: EdgeInsets.all(16.0),
-                      child: Text('Chưa có danh sách nào. Hãy tạo mới!'),
-                    ),
-                  );
-                }
-                return SliverList(
-                  delegate: SliverChildBuilderDelegate((context, index) {
-                    final list = lists[index];
-                    return _buildShoppingListTile(context, list);
-                  }, childCount: lists.length),
-                );
-              },
-              loading: () => const SliverFillRemaining(
-                child: Center(child: CircularProgressIndicator()),
+                },
               ),
-              error: (e, _) => SliverFillRemaining(
-                child: Center(child: Text('Lỗi tải nhóm: $e')),
-              ),
-            ),
-
-            const SliverPadding(padding: EdgeInsets.only(bottom: 80)),
-          ],
+            ],
+          ),
         ),
+      ),
+    );
+  }
+
+  void _showCreateGroupDialog(BuildContext context) {
+    // Implement standard Create Group Dialog
+    final controller = TextEditingController();
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Tạo nhóm mới'),
+        content: TextField(
+          controller: controller,
+          decoration: const InputDecoration(labelText: 'Tên nhóm'),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Hủy'),
+          ),
+          FilledButton(
+            onPressed: () {
+              if (controller.text.isNotEmpty) {
+                context.read<GroupBloc>().add(CreateGroup(controller.text));
+                Navigator.pop(context);
+              }
+            },
+            child: const Text('Tạo'),
+          ),
+        ],
       ),
     );
   }
@@ -333,8 +454,11 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
   }
 
   Widget _buildRecipeCard(BuildContext context, dynamic recipe) {
+    // recipe is dynamic from BLoC? No, it's Recipe entity.
+    // recipe['food'] -> recipe.foodName / recipe.imageUrl
+    // In Entity: id, name, htmlContent, foodName, imageUrl, foodId.
     return GestureDetector(
-      onTap: () => context.go('/tabs/home/recipe/${recipe['id']}'),
+      onTap: () => context.go('/tabs/recipe/${recipe.id}', extra: recipe),
       child: Container(
         width: 140,
         margin: const EdgeInsets.only(right: 12),
@@ -357,9 +481,9 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                 borderRadius: const BorderRadius.vertical(
                   top: Radius.circular(16),
                 ),
-                child: recipe['food']?['foodImageUrl'] != null
+                child: recipe.imageUrl != null
                     ? Image.network(
-                        recipe['food']['foodImageUrl'],
+                        recipe.imageUrl!,
                         fit: BoxFit.cover,
                         errorBuilder: (_, __, ___) =>
                             const Icon(Icons.broken_image, color: Colors.grey),
@@ -376,7 +500,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    recipe['name'] ?? 'Món ngon',
+                    recipe.name,
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                     style: const TextStyle(
@@ -398,6 +522,9 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
   }
 
   Widget _buildShoppingListTile(BuildContext context, dynamic list) {
+    // list is ShoppingList entity?
+    // In Group Entity, shoppingLists is List<ShoppingList>.
+    // Propertoes: id, name, note.
     return Container(
       margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
       decoration: BoxDecoration(
@@ -416,99 +543,100 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
           child: const Icon(Icons.list_alt, color: Colors.green),
         ),
         title: Text(
-          list['name'] ?? 'Không tên',
+          list.name ?? 'Không tên',
           style: const TextStyle(fontWeight: FontWeight.bold),
         ),
-        subtitle: Text('Ghi chú: ${list['note'] ?? 'Không có'}'),
+        subtitle: Text('Ghi chú: ${list.note ?? 'Không có'}'),
         trailing: const Icon(Icons.chevron_right, color: Colors.grey),
         onTap: () {
-          context.go('/tabs/home/shopping-list/${list['id']}');
+          context.go('/tabs/home/shopping-list/${list.id}');
         },
       ),
     );
   }
 }
 
-class _CreateListDialog extends ConsumerStatefulWidget {
-  const _CreateListDialog();
+class _CreateListDialog extends StatefulWidget {
+  final int? groupId;
+  const _CreateListDialog({this.groupId});
   @override
-  ConsumerState<_CreateListDialog> createState() => _CreateListDialogState();
+  State<_CreateListDialog> createState() => _CreateListDialogState();
 }
 
-class _CreateListDialogState extends ConsumerState<_CreateListDialog> {
+class _CreateListDialogState extends State<_CreateListDialog> {
   final _nameController = TextEditingController();
   final _noteController = TextEditingController();
 
-  Future<void> _create() async {
+  void _create() {
     if (_nameController.text.isEmpty) return;
-    try {
-      await ref
-          .read(shoppingRepositoryProvider)
-          .createList(
-            _nameController.text,
-            _noteController.text.isEmpty ? null : _noteController.text,
-            null,
-          );
-      if (mounted) Navigator.pop(context);
-    } catch (e) {
-      if (mounted)
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(SnackBar(content: Text('Lỗi: $e')));
-    }
+    context.read<ShoppingBloc>().add(
+      CreateList(
+        _nameController.text,
+        _noteController.text.isEmpty ? null : _noteController.text,
+        widget.groupId,
+      ),
+    );
   }
 
   @override
   Widget build(BuildContext context) {
-    return AlertDialog(
-      title: const Text('Danh sách mới'),
-      content: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          TextField(
-            controller: _nameController,
-            decoration: const InputDecoration(
-              labelText: 'Tên danh sách',
-              border: OutlineInputBorder(),
-            ),
+    return BlocConsumer<ShoppingBloc, ShoppingState>(
+      listener: (context, state) {
+        if (!state.isLoadingAction && state.errorMessage == null) {
+          // Success
+          Navigator.pop(context, true);
+        } else if (state.errorMessage != null) {
+          ScaffoldMessenger.of(
+            context,
+          ).showSnackBar(SnackBar(content: Text('Lỗi: ${state.errorMessage}')));
+        }
+      },
+      listenWhen: (prev, curr) =>
+          (prev.isLoadingAction && !curr.isLoadingAction),
+      builder: (context, state) {
+        return AlertDialog(
+          title: const Text('Danh sách mới'),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              TextField(
+                controller: _nameController,
+                decoration: const InputDecoration(
+                  labelText: 'Tên danh sách',
+                  border: OutlineInputBorder(),
+                ),
+              ),
+              const SizedBox(height: 12),
+              TextField(
+                controller: _noteController,
+                decoration: const InputDecoration(
+                  labelText: 'Ghi chú',
+                  border: OutlineInputBorder(),
+                ),
+              ),
+            ],
           ),
-          const SizedBox(height: 12),
-          TextField(
-            controller: _noteController,
-            decoration: const InputDecoration(
-              labelText: 'Ghi chú',
-              border: OutlineInputBorder(),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text('Hủy'),
             ),
-          ),
-        ],
-      ),
-      actions: [
-        TextButton(
-          onPressed: () => Navigator.pop(context),
-          child: const Text('Hủy'),
-        ),
-        FilledButton(onPressed: _create, child: const Text('Tạo')),
-      ],
+            FilledButton(
+              onPressed: state.isLoadingAction ? null : _create,
+              child: state.isLoadingAction
+                  ? const SizedBox(
+                      width: 20,
+                      height: 20,
+                      child: CircularProgressIndicator(
+                        color: Colors.white,
+                        strokeWidth: 2,
+                      ),
+                    )
+                  : const Text('Tạo'),
+            ),
+          ],
+        );
+      },
     );
   }
 }
-
-// Logic Providers
-final myGroupProvider = FutureProvider.autoDispose((ref) async {
-  return ref.read(groupRepositoryProvider).getMyGroup();
-});
-
-final createGroupProvider = FutureProvider.autoDispose((ref) async {
-  return ref.read(groupRepositoryProvider).createGroup();
-});
-
-final fridgeSummaryProvider = FutureProvider.autoDispose((ref) async {
-  // Fetch fridge items for summary stats
-  return ref.read(fridgeRepositoryProvider).getFridgeItems();
-});
-
-final featuredRecipesProvider = FutureProvider.autoDispose((ref) async {
-  // Fetch all recipes and take top 5
-  final recipes = await ref.read(recipeRepositoryProvider).getAllRecipes();
-  return recipes.take(5).toList();
-});

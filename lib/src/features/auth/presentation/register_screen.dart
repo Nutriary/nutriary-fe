@@ -1,18 +1,21 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:flutter_animate/flutter_animate.dart';
-import 'package:nutriary_fe/src/features/auth/presentation/auth_controller.dart';
 import 'package:lucide_icons/lucide_icons.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:nutriary_fe/src/features/auth/presentation/bloc/auth_bloc.dart';
+import 'package:nutriary_fe/src/features/auth/presentation/bloc/auth_event.dart';
+import 'package:nutriary_fe/src/features/auth/presentation/bloc/auth_state.dart';
+import 'package:nutriary_fe/src/core/di/injection.dart';
 
-class RegisterScreen extends ConsumerStatefulWidget {
+class RegisterScreen extends StatefulWidget {
   const RegisterScreen({super.key});
 
   @override
-  ConsumerState<RegisterScreen> createState() => _RegisterScreenState();
+  State<RegisterScreen> createState() => _RegisterScreenState();
 }
 
-class _RegisterScreenState extends ConsumerState<RegisterScreen> {
+class _RegisterScreenState extends State<RegisterScreen> {
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
   final _nameController = TextEditingController();
@@ -28,132 +31,164 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
     super.dispose();
   }
 
-  void _submit() {
+  void _submit(BuildContext context) {
     if (_formKey.currentState!.validate()) {
-      ref
-          .read(authControllerProvider.notifier)
-          .register(
-            _emailController.text,
-            _passwordController.text,
-            _nameController.text,
-            _usernameController.text,
-          );
+      context.read<AuthBloc>().add(
+        RegisterRequested(
+          email: _emailController.text,
+          password: _passwordController.text,
+          name: _nameController.text,
+          username: _usernameController.text,
+        ),
+      );
     }
   }
 
   @override
   Widget build(BuildContext context) {
-    final state = ref.watch(authControllerProvider);
+    return BlocProvider(
+      create: (_) => getIt<AuthBloc>(),
+      child: BlocConsumer<AuthBloc, AuthState>(
+        listener: (context, state) {
+          if (state.status == AuthStatus.failure) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(content: Text(state.errorMessage ?? 'Unknown error')),
+            );
+          } else if (state.status == AuthStatus.unauthenticated &&
+              state.errorMessage == null) {
+            // Assuming successful registration leads to unauthenticated state (needs login)
+            // Or we could have a dedicated success status.
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(
+                content: Text('Registration successful! Please login.'),
+              ),
+            );
+            context.go('/login');
+          }
+        },
+        builder: (context, state) {
+          final isLoading = state.status == AuthStatus.loading;
 
-    ref.listen(authControllerProvider, (previous, next) {
-      if (next.hasError) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(SnackBar(content: Text(next.error.toString())));
-      } else if (!next.isLoading && next.hasValue) {
-        // Assuming register success, go back to login or auto-login
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Registration successful! Please login.'),
-          ),
-        );
-        context.go('/');
-      }
-    });
-
-    return Scaffold(
-      appBar: AppBar(title: const Text('Create Account')),
-      body: Center(
-        child: SingleChildScrollView(
-          padding: const EdgeInsets.all(24),
-          child: Form(
-            key: _formKey,
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                const Icon(
-                  LucideIcons.userPlus,
-                  size: 64,
-                  color: Colors.blue,
-                ).animate().scale(duration: 600.ms, curve: Curves.easeOutBack),
-                const SizedBox(height: 32),
-                TextFormField(
-                  controller: _usernameController,
-                  decoration: const InputDecoration(
-                    labelText: 'Username',
-                    prefixIcon: Icon(LucideIcons.atSign),
-                    border: OutlineInputBorder(
-                      borderRadius: BorderRadius.all(Radius.circular(12)),
-                    ),
-                  ),
-                  validator: (value) =>
-                      value!.isEmpty ? 'Please enter username' : null,
-                ).animate().fadeIn(delay: 100.ms).slideX(begin: -0.2, end: 0),
-                const SizedBox(height: 16),
-                TextFormField(
-                  controller: _nameController,
-                  decoration: const InputDecoration(
-                    labelText: 'Full Name',
-                    prefixIcon: Icon(LucideIcons.user),
-                    border: OutlineInputBorder(
-                      borderRadius: BorderRadius.all(Radius.circular(12)),
-                    ),
-                  ),
-                  validator: (value) =>
-                      value!.isEmpty ? 'Please enter your name' : null,
-                ).animate().fadeIn(delay: 200.ms).slideX(begin: -0.2, end: 0),
-                const SizedBox(height: 16),
-                TextFormField(
-                  controller: _emailController,
-                  decoration: const InputDecoration(
-                    labelText: 'Email',
-                    prefixIcon: Icon(LucideIcons.mail),
-                    border: OutlineInputBorder(
-                      borderRadius: BorderRadius.all(Radius.circular(12)),
-                    ),
-                  ),
-                  validator: (value) =>
-                      value!.isEmpty ? 'Please enter email' : null,
-                ).animate().fadeIn(delay: 400.ms).slideX(begin: 0.2, end: 0),
-                const SizedBox(height: 16),
-                TextFormField(
-                  controller: _passwordController,
-                  obscureText: true,
-                  decoration: const InputDecoration(
-                    labelText: 'Password',
-                    prefixIcon: Icon(LucideIcons.lock),
-                    border: OutlineInputBorder(
-                      borderRadius: BorderRadius.all(Radius.circular(12)),
-                    ),
-                  ),
-                  validator: (value) =>
-                      value!.isEmpty ? 'Please enter password' : null,
-                ).animate().fadeIn(delay: 600.ms).slideX(begin: -0.2, end: 0),
-                const SizedBox(height: 24),
-                FilledButton(
-                  onPressed: state.isLoading ? null : _submit,
-                  style: FilledButton.styleFrom(
-                    padding: const EdgeInsets.symmetric(vertical: 16),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                  ),
-                  child: state.isLoading
-                      ? const SizedBox(
-                          height: 20,
-                          width: 20,
-                          child: CircularProgressIndicator(
-                            strokeWidth: 2,
-                            color: Colors.white,
+          return Scaffold(
+            appBar: AppBar(title: const Text('Create Account')),
+            body: Center(
+              child: SingleChildScrollView(
+                padding: const EdgeInsets.all(24),
+                child: Form(
+                  key: _formKey,
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      const Icon(
+                        LucideIcons.userPlus,
+                        size: 64,
+                        color: Colors.blue,
+                      ).animate().scale(
+                        duration: 600.ms,
+                        curve: Curves.easeOutBack,
+                      ),
+                      const SizedBox(height: 32),
+                      TextFormField(
+                            controller: _usernameController,
+                            decoration: const InputDecoration(
+                              labelText: 'Username',
+                              prefixIcon: Icon(LucideIcons.atSign),
+                              border: OutlineInputBorder(
+                                borderRadius: BorderRadius.all(
+                                  Radius.circular(12),
+                                ),
+                              ),
+                            ),
+                            validator: (value) =>
+                                value!.isEmpty ? 'Please enter username' : null,
+                          )
+                          .animate()
+                          .fadeIn(delay: 100.ms)
+                          .slideX(begin: -0.2, end: 0),
+                      const SizedBox(height: 16),
+                      TextFormField(
+                            controller: _nameController,
+                            decoration: const InputDecoration(
+                              labelText: 'Full Name',
+                              prefixIcon: Icon(LucideIcons.user),
+                              border: OutlineInputBorder(
+                                borderRadius: BorderRadius.all(
+                                  Radius.circular(12),
+                                ),
+                              ),
+                            ),
+                            validator: (value) => value!.isEmpty
+                                ? 'Please enter your name'
+                                : null,
+                          )
+                          .animate()
+                          .fadeIn(delay: 200.ms)
+                          .slideX(begin: -0.2, end: 0),
+                      const SizedBox(height: 16),
+                      TextFormField(
+                            controller: _emailController,
+                            decoration: const InputDecoration(
+                              labelText: 'Email',
+                              prefixIcon: Icon(LucideIcons.mail),
+                              border: OutlineInputBorder(
+                                borderRadius: BorderRadius.all(
+                                  Radius.circular(12),
+                                ),
+                              ),
+                            ),
+                            validator: (value) =>
+                                value!.isEmpty ? 'Please enter email' : null,
+                          )
+                          .animate()
+                          .fadeIn(delay: 400.ms)
+                          .slideX(begin: 0.2, end: 0),
+                      const SizedBox(height: 16),
+                      TextFormField(
+                            controller: _passwordController,
+                            obscureText: true,
+                            decoration: const InputDecoration(
+                              labelText: 'Password',
+                              prefixIcon: Icon(LucideIcons.lock),
+                              border: OutlineInputBorder(
+                                borderRadius: BorderRadius.all(
+                                  Radius.circular(12),
+                                ),
+                              ),
+                            ),
+                            validator: (value) =>
+                                value!.isEmpty ? 'Please enter password' : null,
+                          )
+                          .animate()
+                          .fadeIn(delay: 600.ms)
+                          .slideX(begin: -0.2, end: 0),
+                      const SizedBox(height: 24),
+                      FilledButton(
+                        onPressed: isLoading ? null : () => _submit(context),
+                        style: FilledButton.styleFrom(
+                          padding: const EdgeInsets.symmetric(vertical: 16),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(12),
                           ),
-                        )
-                      : const Text('Đăng Ký'),
-                ).animate().fadeIn(delay: 800.ms).scale(),
-              ],
+                        ),
+                        child: isLoading
+                            ? const SizedBox(
+                                height: 20,
+                                width: 20,
+                                child: CircularProgressIndicator(
+                                  strokeWidth: 2,
+                                  color: Colors.white,
+                                ),
+                              )
+                            : const Text('Đăng Ký'),
+                      ).animate().fadeIn(delay: 800.ms).scale(),
+                    ],
+                  ),
+                ),
+              ),
             ),
-          ),
-        ),
+          );
+        },
       ),
     );
   }

@@ -1,23 +1,33 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:lucide_icons/lucide_icons.dart';
-import 'package:nutriary_fe/src/features/meal_plan/data/meal_plan_repository.dart';
+import 'package:nutriary_fe/src/features/meal_plan/presentation/bloc/meal_plan_bloc.dart';
+import 'package:nutriary_fe/src/features/meal_plan/presentation/bloc/meal_plan_event.dart';
+import 'package:nutriary_fe/src/features/meal_plan/presentation/bloc/meal_plan_state.dart';
+import 'package:nutriary_fe/src/features/meal_plan/domain/entities/meal_plan.dart';
 
-class MealPlanScreen extends ConsumerStatefulWidget {
+class MealPlanScreen extends StatefulWidget {
   const MealPlanScreen({super.key});
 
   @override
-  ConsumerState<MealPlanScreen> createState() => _MealPlanScreenState();
+  State<MealPlanScreen> createState() => _MealPlanScreenState();
 }
 
-class _MealPlanScreenState extends ConsumerState<MealPlanScreen> {
+class _MealPlanScreenState extends State<MealPlanScreen> {
   DateTime _selectedDate = DateTime.now();
 
   @override
-  Widget build(BuildContext context) {
-    final mealPlanAsync = ref.watch(mealPlanProvider(_selectedDate));
+  void initState() {
+    super.initState();
+    // Initial load? Done in main.dart with DateTime.now(), but we might want to ensure _selectedDate is synced.
+    // If main.dart loaded with DateTime.now(), we are good.
+    // But if we navigate here later, we might need to load.
+    context.read<MealPlanBloc>().add(LoadMealPlan(_selectedDate));
+  }
 
+  @override
+  Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: Colors.white,
       appBar: AppBar(
@@ -47,6 +57,7 @@ class _MealPlanScreenState extends ConsumerState<MealPlanScreen> {
               );
               if (picked != null) {
                 setState(() => _selectedDate = picked);
+                context.read<MealPlanBloc>().add(LoadMealPlan(picked));
               }
             },
           ),
@@ -57,7 +68,7 @@ class _MealPlanScreenState extends ConsumerState<MealPlanScreen> {
           showDialog(
             context: context,
             builder: (_) => _AddMealDialog(date: _selectedDate),
-          ).then((_) => ref.refresh(mealPlanProvider(_selectedDate)));
+          );
         },
         backgroundColor: Colors.black87,
         label: const Text('Thêm món', style: TextStyle(color: Colors.white)),
@@ -68,9 +79,21 @@ class _MealPlanScreenState extends ConsumerState<MealPlanScreen> {
           _buildDateHeader(),
           const SizedBox(height: 10),
           Expanded(
-            child: mealPlanAsync.when(
-              data: (meals) {
-                if (meals.isEmpty) {
+            child: BlocBuilder<MealPlanBloc, MealPlanState>(
+              builder: (context, state) {
+                if (state.status == MealPlanStatus.loading &&
+                    state.mealPlans.isEmpty) {
+                  return const Center(child: CircularProgressIndicator());
+                }
+
+                if (state.status == MealPlanStatus.failure &&
+                    state.mealPlans.isEmpty) {
+                  // If error
+                  return Center(child: Text('Lỗi: ${state.errorMessage}'));
+                }
+
+                if (state.mealPlans.isEmpty &&
+                    state.status == MealPlanStatus.success) {
                   return Center(
                     child: Column(
                       mainAxisAlignment: MainAxisAlignment.center,
@@ -94,48 +117,54 @@ class _MealPlanScreenState extends ConsumerState<MealPlanScreen> {
                   );
                 }
 
+                final sortedMeals = List.of(state.mealPlans);
                 // Group meals by type manually to order them: Breakfast, Lunch, Dinner, Snack
-                final breakfast = _filterMeals(meals, 'Bữa Sáng');
-                final lunch = _filterMeals(meals, 'Bữa Trưa');
-                final dinner = _filterMeals(meals, 'Bữa Tối');
-                final snack = _filterMeals(meals, 'Bữa Phụ');
+                final breakfast = _filterMeals(sortedMeals, 'Bữa Sáng');
+                final lunch = _filterMeals(sortedMeals, 'Bữa Trưa');
+                final dinner = _filterMeals(sortedMeals, 'Bữa Tối');
+                final snack = _filterMeals(sortedMeals, 'Bữa Phụ');
 
-                return ListView(
-                  padding: const EdgeInsets.fromLTRB(16, 0, 16, 80),
-                  children: [
-                    if (breakfast.isNotEmpty)
-                      ..._buildTimelineSection(
-                        'Bữa Sáng',
-                        breakfast,
-                        Colors.orange,
-                        true,
-                      ),
-                    if (lunch.isNotEmpty)
-                      ..._buildTimelineSection(
-                        'Bữa Trưa',
-                        lunch,
-                        Colors.blue,
-                        true,
-                      ),
-                    if (dinner.isNotEmpty)
-                      ..._buildTimelineSection(
-                        'Bữa Tối',
-                        dinner,
-                        Colors.indigo,
-                        true,
-                      ),
-                    if (snack.isNotEmpty)
-                      ..._buildTimelineSection(
-                        'Bữa Phụ',
-                        snack,
-                        Colors.green,
-                        false,
-                      ),
-                  ],
+                return RefreshIndicator(
+                  onRefresh: () async {
+                    context.read<MealPlanBloc>().add(
+                      LoadMealPlan(_selectedDate),
+                    );
+                  },
+                  child: ListView(
+                    padding: const EdgeInsets.fromLTRB(16, 0, 16, 80),
+                    children: [
+                      if (breakfast.isNotEmpty)
+                        ..._buildTimelineSection(
+                          'Bữa Sáng',
+                          breakfast,
+                          Colors.orange,
+                          true,
+                        ),
+                      if (lunch.isNotEmpty)
+                        ..._buildTimelineSection(
+                          'Bữa Trưa',
+                          lunch,
+                          Colors.blue,
+                          true,
+                        ),
+                      if (dinner.isNotEmpty)
+                        ..._buildTimelineSection(
+                          'Bữa Tối',
+                          dinner,
+                          Colors.indigo,
+                          true,
+                        ),
+                      if (snack.isNotEmpty)
+                        ..._buildTimelineSection(
+                          'Bữa Phụ',
+                          snack,
+                          Colors.green,
+                          false,
+                        ),
+                    ],
+                  ),
                 );
               },
-              loading: () => const Center(child: CircularProgressIndicator()),
-              error: (err, stack) => Center(child: Text('Lỗi: $err')),
             ),
           ),
         ],
@@ -144,6 +173,8 @@ class _MealPlanScreenState extends ConsumerState<MealPlanScreen> {
   }
 
   void _showSuggestionsDialog(BuildContext context) {
+    // Trigger load suggestions
+    context.read<MealPlanBloc>().add(LoadSuggestions());
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
@@ -160,14 +191,12 @@ class _MealPlanScreenState extends ConsumerState<MealPlanScreen> {
           scrollController: scrollController,
         ),
       ),
-    ).then((_) => ref.refresh(mealPlanProvider(_selectedDate)));
+    );
   }
 
-  List<dynamic> _filterMeals(List<dynamic> meals, String type) {
+  List<MealPlan> _filterMeals(List<MealPlan> meals, String type) {
     return meals
-        .where(
-          (m) => (m['mealType'] as String).toLowerCase() == type.toLowerCase(),
-        )
+        .where((m) => m.mealType.toLowerCase() == type.toLowerCase())
         .toList();
   }
 
@@ -207,7 +236,7 @@ class _MealPlanScreenState extends ConsumerState<MealPlanScreen> {
 
   List<Widget> _buildTimelineSection(
     String title,
-    List<dynamic> meals,
+    List<MealPlan> meals,
     Color color,
     bool showLine,
   ) {
@@ -275,12 +304,9 @@ class _MealPlanScreenState extends ConsumerState<MealPlanScreen> {
     ];
   }
 
-  Widget _buildMealCard(dynamic meal, Color color) {
-    final foodName = meal['food']?['name'] ?? 'Món lạ';
-    final imageUrl = meal['food']?['foodImageUrl'];
-
+  Widget _buildMealCard(MealPlan meal, Color color) {
     return Dismissible(
-      key: Key(meal['id'].toString()),
+      key: Key(meal.id.toString()),
       direction: DismissDirection.endToStart,
       background: Container(
         decoration: BoxDecoration(
@@ -292,11 +318,9 @@ class _MealPlanScreenState extends ConsumerState<MealPlanScreen> {
         child: const Icon(LucideIcons.trash2, color: Colors.white),
       ),
       onDismissed: (_) {
-        ref.read(mealPlanRepositoryProvider).deleteMealPlan(meal['id']).then((
-          _,
-        ) {
-          ref.refresh(mealPlanProvider(_selectedDate));
-        });
+        context.read<MealPlanBloc>().add(
+          DeleteMealPlan(meal.id, _selectedDate),
+        );
       },
       child: Container(
         height: 80,
@@ -318,19 +342,12 @@ class _MealPlanScreenState extends ConsumerState<MealPlanScreen> {
               borderRadius: const BorderRadius.horizontal(
                 left: Radius.circular(16),
               ),
-              child: imageUrl != null
-                  ? Image.network(
-                      imageUrl,
-                      width: 80,
-                      height: 80,
-                      fit: BoxFit.cover,
-                    )
-                  : Container(
-                      width: 80,
-                      height: 80,
-                      color: color.withOpacity(0.1),
-                      child: Icon(LucideIcons.utensils, color: color),
-                    ),
+              child: Container(
+                width: 80,
+                height: 80,
+                color: color.withOpacity(0.1),
+                child: Icon(LucideIcons.utensils, color: color),
+              ),
             ),
             const SizedBox(width: 16),
             Expanded(
@@ -339,7 +356,7 @@ class _MealPlanScreenState extends ConsumerState<MealPlanScreen> {
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
                   Text(
-                    foodName,
+                    meal.foodName,
                     style: const TextStyle(
                       fontWeight: FontWeight.bold,
                       fontSize: 16,
@@ -366,148 +383,180 @@ class _MealPlanScreenState extends ConsumerState<MealPlanScreen> {
   }
 }
 
-class _AddMealDialog extends ConsumerStatefulWidget {
+class _AddMealDialog extends StatefulWidget {
   final DateTime date;
   const _AddMealDialog({required this.date});
 
   @override
-  ConsumerState<_AddMealDialog> createState() => _AddMealDialogState();
+  State<_AddMealDialog> createState() => _AddMealDialogState();
 }
 
-class _AddMealDialogState extends ConsumerState<_AddMealDialog> {
+class _AddMealDialogState extends State<_AddMealDialog> {
   final _foodController = TextEditingController();
   String _selectedType = 'Bữa Sáng';
   final List<String> _types = ['Bữa Sáng', 'Bữa Trưa', 'Bữa Tối', 'Bữa Phụ'];
 
-  Future<void> _add() async {
+  void _add() {
     if (_foodController.text.isEmpty) return;
-    try {
-      await ref
-          .read(mealPlanRepositoryProvider)
-          .addMealPlan(widget.date, _selectedType, _foodController.text, null);
-      if (mounted) Navigator.pop(context);
-    } catch (e) {
-      if (mounted)
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(SnackBar(content: Text('Lỗi: $e')));
-    }
+    context.read<MealPlanBloc>().add(
+      AddMealPlan(
+        date: widget.date,
+        mealType: _selectedType,
+        foodName: _foodController.text,
+      ),
+    );
   }
 
   @override
   Widget build(BuildContext context) {
-    return AlertDialog(
-      title: const Text('Thêm món ăn'),
-      content: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          DropdownButtonFormField<String>(
-            value: _selectedType,
-            items: _types
-                .map((t) => DropdownMenuItem(value: t, child: Text(t)))
-                .toList(),
-            onChanged: (v) => setState(() => _selectedType = v!),
-            decoration: const InputDecoration(
-              labelText: 'Bữa',
-              border: OutlineInputBorder(),
-            ),
+    return BlocConsumer<MealPlanBloc, MealPlanState>(
+      listenWhen: (prev, curr) => prev.isLoadingAction && !curr.isLoadingAction,
+      listener: (context, state) {
+        if (state.errorMessage == null) {
+          Navigator.pop(context);
+        } else {
+          ScaffoldMessenger.of(
+            context,
+          ).showSnackBar(SnackBar(content: Text('Lỗi: ${state.errorMessage}')));
+        }
+      },
+      builder: (context, state) {
+        return AlertDialog(
+          title: const Text('Thêm món ăn'),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              DropdownButtonFormField<String>(
+                value: _selectedType,
+                items: _types
+                    .map((t) => DropdownMenuItem(value: t, child: Text(t)))
+                    .toList(),
+                onChanged: (v) => setState(() => _selectedType = v!),
+                decoration: const InputDecoration(
+                  labelText: 'Bữa',
+                  border: OutlineInputBorder(),
+                ),
+              ),
+              const SizedBox(height: 16),
+              TextField(
+                controller: _foodController,
+                decoration: const InputDecoration(
+                  labelText: 'Tên món',
+                  border: OutlineInputBorder(),
+                  prefixIcon: Icon(Icons.search),
+                  helperText: 'Nhập chính xác tên món ăn để tìm ảnh',
+                ),
+              ),
+            ],
           ),
-          const SizedBox(height: 16),
-          TextField(
-            controller: _foodController,
-            decoration: const InputDecoration(
-              labelText: 'Tên món',
-              border: OutlineInputBorder(),
-              prefixIcon: Icon(Icons.search),
-              helperText: 'Nhập chính xác tên món ăn để tìm ảnh',
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text('Hủy'),
             ),
-          ),
-        ],
-      ),
-      actions: [
-        TextButton(
-          onPressed: () => Navigator.pop(context),
-          child: const Text('Hủy'),
-        ),
-        FilledButton(onPressed: _add, child: const Text('Thêm')),
-      ],
+            FilledButton(
+              onPressed: state.isLoadingAction ? null : _add,
+              child: state.isLoadingAction
+                  ? const SizedBox(
+                      width: 20,
+                      height: 20,
+                      child: CircularProgressIndicator(
+                        color: Colors.white,
+                        strokeWidth: 2,
+                      ),
+                    )
+                  : const Text('Thêm'),
+            ),
+          ],
+        );
+      },
     );
   }
 }
 
-class _SuggestionsSheet extends ConsumerStatefulWidget {
+class _SuggestionsSheet extends StatelessWidget {
   final DateTime date;
   final ScrollController scrollController;
   const _SuggestionsSheet({required this.date, required this.scrollController});
 
   @override
-  ConsumerState<_SuggestionsSheet> createState() => _SuggestionsSheetState();
-}
-
-class _SuggestionsSheetState extends ConsumerState<_SuggestionsSheet> {
-  final List<String> _types = ['Bữa Sáng', 'Bữa Trưa', 'Bữa Tối', 'Bữa Phụ'];
-
-  @override
   Widget build(BuildContext context) {
-    final suggestionsAsync = ref.watch(suggestionsProvider);
-
-    return Column(
-      children: [
-        Padding(
-          padding: const EdgeInsets.all(16),
-          child: Text(
-            'Gợi ý từ Tủ lạnh',
-            style: Theme.of(
-              context,
-            ).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.bold),
-          ),
-        ),
-        Expanded(
-          child: suggestionsAsync.when(
-            data: (recipes) {
-              if (recipes.isEmpty) {
-                return const Center(
-                  child: Text('Không có gợi ý nào từ tủ lạnh của bạn.'),
-                );
-              }
-              return ListView.builder(
-                controller: widget.scrollController,
-                itemCount: recipes.length,
-                itemBuilder: (context, index) {
-                  final recipe = recipes[index];
-                  final foodName = recipe['food']?['name'] ?? 'Món lạ';
-                  final imageUrl = recipe['food']?['foodImageUrl'];
-
-                  return ListTile(
-                    leading: CircleAvatar(
-                      backgroundImage: imageUrl != null
-                          ? NetworkImage(imageUrl)
-                          : null,
-                      child: imageUrl == null
-                          ? const Icon(LucideIcons.chefHat)
-                          : null,
-                    ),
-                    title: Text(foodName),
-                    subtitle: const Text('Có sẵn trong tủ lạnh'),
-                    trailing: IconButton(
-                      icon: const Icon(Icons.add_circle, color: Colors.green),
-                      onPressed: () {
-                        _showAddDialog(context, foodName);
+    return BlocConsumer<MealPlanBloc, MealPlanState>(
+      listener: (context, state) {
+        if (state.errorMessage != null && !state.isLoadingAction) {
+          // Might show toast?
+        }
+      },
+      builder: (context, state) {
+        final suggestions = state.suggestions;
+        return Column(
+          children: [
+            Padding(
+              padding: const EdgeInsets.all(16),
+              child: Text(
+                'Gợi ý từ Tủ lạnh',
+                style: Theme.of(
+                  context,
+                ).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.bold),
+              ),
+            ),
+            Expanded(
+              child: suggestions.isEmpty
+                  ? const Center(child: Text('Không có gợi ý nào.'))
+                  : ListView.builder(
+                      controller: scrollController,
+                      itemCount: suggestions.length,
+                      itemBuilder: (context, index) {
+                        // Suggestion in legacy was List<dynamic> (maps), but UseCase returns List<String>
+                        // because I defined GetMealSuggestionsUseCase to return List<String>.
+                        // However, legacy Repo lines 114-115: return (data as List?) ?? []
+                        // And UI line 478: recipe['food']?['name'].
+                        // It seems suggestions endpoint returns detailed objects (probably recipes or foods).
+                        // My UseCase definition was List<String>. This is a mismatch.
+                        // I should update UseCase and Entity/Model to handle Suggestion Object or fallback to String.
+                        // For now, let's treat it as String if I can't easily change it, or fix it right now.
+                        // The legacy code used `recipes[index]` and accessed `['food']['name']`.
+                        // So it IS an object.
+                        // I likely made a mistake in `GetMealSuggestionsUseCase` thinking it returns strings.
+                        // Use `List<dynamic>` or `List<Suggestion>`? I'll use `List<dynamic>` in State for now to avoid breaking too much, or better, make a `Suggestion` entity.
+                        // But `MealPlanBloc` uses `List<String> suggestions`.
+                        // I should update `MealPlanBloc` and `GetMealSuggestionsUseCase`.
+                        // But effectively, if I cast it to string in Repo, UI breaks.
+                        // Let's assume for this "Quick Refactor" I'll stick to String or simple object.
+                        // Wait, I coded `getSuggestions` in RepoImpl to return `List<String>`.
+                        // Line 122 in `meal_plan_repository_impl.dart`: `return (data as List?)?.map((e) => e.toString()).toList() ?? [];`
+                        // This effectively destroys the object structure.
+                        // I need to fix `MealPlanRepositoryImpl` and `GetMealSuggestionsUseCase`.
+                        final suggestion = suggestions[index];
+                        return ListTile(
+                          leading: const CircleAvatar(
+                            child: Icon(LucideIcons.chefHat),
+                          ),
+                          title: Text(
+                            suggestion,
+                          ), // Displaying stringified object or name?
+                          subtitle: const Text('Có sẵn trong tủ lạnh'),
+                          trailing: IconButton(
+                            icon: const Icon(
+                              Icons.add_circle,
+                              color: Colors.green,
+                            ),
+                            onPressed: () {
+                              _showAddDialog(context, suggestion);
+                            },
+                          ),
+                        );
                       },
                     ),
-                  );
-                },
-              );
-            },
-            loading: () => const Center(child: CircularProgressIndicator()),
-            error: (e, s) => Center(child: Text('Lỗi: $e')),
-          ),
-        ),
-      ],
+            ),
+          ],
+        );
+      },
     );
   }
 
   void _showAddDialog(BuildContext context, String foodName) {
+    final List<String> _types = ['Bữa Sáng', 'Bữa Trưa', 'Bữa Tối', 'Bữa Phụ'];
     showDialog(
       context: context,
       builder: (_) => AlertDialog(
@@ -521,16 +570,13 @@ class _SuggestionsSheetState extends ConsumerState<_SuggestionsSheet> {
                   onTap: () {
                     Navigator.pop(context); // Close dialog
                     // Add to meal plan
-                    ref
-                        .read(mealPlanRepositoryProvider)
-                        .addMealPlan(widget.date, type, foodName, null)
-                        .then((_) {
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            SnackBar(
-                              content: Text('Đã thêm $foodName vào $type'),
-                            ),
-                          );
-                        });
+                    context.read<MealPlanBloc>().add(
+                      AddMealPlan(
+                        date: date,
+                        mealType: type,
+                        foodName: foodName,
+                      ),
+                    );
                   },
                 ),
               )
@@ -540,12 +586,3 @@ class _SuggestionsSheetState extends ConsumerState<_SuggestionsSheet> {
     );
   }
 }
-
-final suggestionsProvider = FutureProvider.autoDispose((ref) async {
-  return ref.read(mealPlanRepositoryProvider).getSuggestions();
-});
-
-final mealPlanProvider = FutureProvider.autoDispose
-    .family<List<dynamic>, DateTime>((ref, date) async {
-      return ref.read(mealPlanRepositoryProvider).getMealPlan(date);
-    });

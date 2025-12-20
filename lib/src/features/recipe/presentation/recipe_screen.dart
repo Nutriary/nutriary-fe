@@ -1,64 +1,158 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:flutter_widget_from_html/flutter_widget_from_html.dart';
-import 'package:nutriary_fe/src/features/recipe/data/recipe_repository.dart';
 import 'package:go_router/go_router.dart';
+import 'package:nutriary_fe/src/features/recipe/presentation/bloc/recipe_bloc.dart';
+import 'package:nutriary_fe/src/features/recipe/presentation/bloc/recipe_event.dart';
+import 'package:nutriary_fe/src/features/recipe/presentation/bloc/recipe_state.dart';
+import 'package:nutriary_fe/src/features/recipe/domain/entities/recipe.dart';
 
-class RecipeListScreen extends ConsumerStatefulWidget {
+class RecipeListScreen extends StatefulWidget {
   const RecipeListScreen({super.key});
 
   @override
-  ConsumerState<RecipeListScreen> createState() => _RecipeListScreenState();
+  State<RecipeListScreen> createState() => _RecipeListScreenState();
 }
 
-class _RecipeListScreenState extends ConsumerState<RecipeListScreen> {
+class _RecipeListScreenState extends State<RecipeListScreen> {
+  String _searchQuery = '';
+
   @override
   Widget build(BuildContext context) {
-    final recipesAsync = ref.watch(allRecipesProvider);
-
     return Scaffold(
-      appBar: AppBar(title: const Text('Công thức')),
-      body: recipesAsync.when(
-        data: (recipes) {
-          if (recipes.isEmpty) {
-            return const Center(child: Text('Chưa có công thức nào.'));
-          }
-          return GridView.builder(
-            padding: const EdgeInsets.all(16),
-            gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-              crossAxisCount: 2,
-              crossAxisSpacing: 16,
-              mainAxisSpacing: 16,
-              childAspectRatio: 0.8,
+      backgroundColor: Colors.grey[50], // Light background
+      appBar: AppBar(
+        title: const Text(
+          'Công thức nấu ăn',
+          style: TextStyle(fontWeight: FontWeight.bold),
+        ),
+        centerTitle: false,
+        elevation: 0,
+        backgroundColor: Colors.white,
+        foregroundColor: Colors.black,
+      ),
+      body: Column(
+        children: [
+          // Search Bar
+          Padding(
+            padding: const EdgeInsets.all(16.0),
+            child: TextField(
+              onChanged: (value) => setState(() => _searchQuery = value),
+              decoration: InputDecoration(
+                hintText: 'Tìm kiếm công thức...',
+                prefixIcon: const Icon(Icons.search),
+                filled: true,
+                fillColor: Colors.white,
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(12),
+                  borderSide: BorderSide.none,
+                ),
+                contentPadding: const EdgeInsets.symmetric(vertical: 0),
+              ),
             ),
-            itemCount: recipes.length,
-            itemBuilder: (context, index) {
-              final recipe = recipes[index];
-              return _RecipeCard(recipe: recipe);
-            },
+          ),
+          Expanded(
+            child: BlocBuilder<RecipeBloc, RecipeState>(
+              builder: (context, state) {
+                if (state.status == RecipeStatus.loading &&
+                    state.recipes.isEmpty) {
+                  return const Center(child: CircularProgressIndicator());
+                }
+
+                if (state.status == RecipeStatus.failure &&
+                    state.recipes.isEmpty) {
+                  return Center(
+                    child: Text('Lỗi tải dữ liệu: ${state.errorMessage}'),
+                  );
+                }
+
+                // Client-side filtering
+                final filtered = state.recipes.where((r) {
+                  final name = r.name.toLowerCase();
+                  final foodName = (r.foodName ?? '').toLowerCase();
+                  final query = _searchQuery.toLowerCase();
+                  return name.contains(query) || foodName.contains(query);
+                }).toList();
+
+                if (filtered.isEmpty) {
+                  return Center(
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Icon(
+                          Icons.search_off,
+                          size: 64,
+                          color: Colors.grey[300],
+                        ),
+                        const SizedBox(height: 16),
+                        Text(
+                          _searchQuery.isEmpty
+                              ? 'Chưa có công thức nào.'
+                              : 'Không tìm thấy kết quả.',
+                          style: TextStyle(color: Colors.grey[500]),
+                        ),
+                        if (_searchQuery.isEmpty)
+                          TextButton(
+                            onPressed: () => context.read<RecipeBloc>().add(
+                              LoadAllRecipes(),
+                            ),
+                            child: const Text('Tải lại'),
+                          ),
+                      ],
+                    ),
+                  );
+                }
+
+                return RefreshIndicator(
+                  onRefresh: () async =>
+                      context.read<RecipeBloc>().add(LoadAllRecipes()),
+                  child: GridView.builder(
+                    padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+                    gridDelegate:
+                        const SliverGridDelegateWithFixedCrossAxisCount(
+                          crossAxisCount: 2,
+                          crossAxisSpacing: 16,
+                          mainAxisSpacing: 16,
+                          childAspectRatio: 0.75, // Taller card for content
+                        ),
+                    itemCount: filtered.length,
+                    itemBuilder: (context, index) {
+                      return _RecipeCard(recipe: filtered[index]);
+                    },
+                  ),
+                );
+              },
+            ),
+          ),
+        ],
+      ),
+      floatingActionButton: FloatingActionButton(
+        onPressed: () {
+          showDialog(
+            context: context,
+            builder: (_) => const _AddRecipeDialog(),
           );
         },
-        loading: () => const Center(child: CircularProgressIndicator()),
-        error: (err, stack) => Center(child: Text('Lỗi: $err')),
+        child: const Icon(Icons.add),
       ),
     );
   }
 }
 
 class _RecipeCard extends StatelessWidget {
-  final dynamic recipe;
+  final Recipe recipe;
   const _RecipeCard({required this.recipe});
 
   @override
   Widget build(BuildContext context) {
-    final foodName = recipe['food']?['name'] ?? 'Món lạ';
-    final imageUrl = recipe['food']?['foodImageUrl'];
-    final recipeName = recipe['name'] ?? foodName;
+    final foodName = recipe.foodName ?? 'Món lạ';
+    final imageUrl = recipe.imageUrl;
+    final recipeName = recipe.name;
 
     return GestureDetector(
       onTap: () {
-        context.go('/home/recipe/${recipe['id']}', extra: recipe);
+        context.go('/tabs/recipe/${recipe.id}', extra: recipe);
       },
       child: Card(
         clipBehavior: Clip.antiAlias,
@@ -68,7 +162,7 @@ class _RecipeCard extends StatelessWidget {
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
             Expanded(
-              child: imageUrl != null && (imageUrl as String).isNotEmpty
+              child: imageUrl != null && imageUrl.isNotEmpty
                   ? Image.network(imageUrl, fit: BoxFit.cover)
                   : Container(
                       color: Colors.orange.shade100,
@@ -108,29 +202,121 @@ class _RecipeCard extends StatelessWidget {
 }
 
 class RecipeDetailScreen extends StatelessWidget {
-  final dynamic recipe; // Passed via 'extra' or fetched
+  final dynamic
+  recipe; // Can be Recipe entity or JSON map if coming from deep link/legacy?
+  // Ideally strictly Recipe entity. But checking 'extra' it might be map if not migrated everywhere.
+  // Let's assume Entity or handle map.
   const RecipeDetailScreen({super.key, required this.recipe});
+
+  Recipe get _recipeEntity {
+    if (recipe is Recipe) return recipe as Recipe;
+    // Fallback if map
+    return Recipe(
+      id: recipe['id'],
+      name: recipe['name'] ?? '',
+      htmlContent: recipe['html_content'] ?? recipe['htmlContent'],
+      foodName:
+          recipe['food_name'] ?? recipe['foodName'] ?? recipe['food']?['name'],
+      imageUrl:
+          recipe['image_url'] ??
+          recipe['imageUrl'] ??
+          recipe['food']?['foodImageUrl'],
+      foodId:
+          recipe['food_id'] ??
+          (recipe['food'] != null ? recipe['food']['id'] : null),
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
-    // If recipe is null (page refresh), you might fetch it by ID. For now assume passed.
-    if (recipe == null)
+    // If null check
+    if (recipe == null) {
       return const Scaffold(body: Center(child: Text('Recipe not found')));
+    }
 
-    final name = recipe['name'];
-    final htmlContent = recipe['html_content'] ?? '<p>No content</p>';
+    final entity = _recipeEntity;
+    final name = entity.name;
+    final foodName = entity.foodName ?? '';
+    final htmlContent = entity.htmlContent ?? '<p>Chưa có hướng dẫn</p>';
+    final imageUrl = entity.imageUrl;
 
     return Scaffold(
-      appBar: AppBar(title: Text(name)),
+      backgroundColor: Colors.white,
+      appBar: AppBar(
+        title: Text(foodName),
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.delete_outline),
+            onPressed: () {
+              showDialog(
+                context: context,
+                builder: (ctx) => AlertDialog(
+                  title: const Text('Xoá công thức?'),
+                  content: const Text('Hành động này không thể hoàn tác.'),
+                  actions: [
+                    TextButton(
+                      onPressed: () => Navigator.pop(ctx),
+                      child: const Text('Huỷ'),
+                    ),
+                    FilledButton(
+                      style: FilledButton.styleFrom(
+                        backgroundColor: Colors.red,
+                      ),
+                      onPressed: () {
+                        // Action
+                        context.read<RecipeBloc>().add(DeleteRecipe(entity.id));
+                        Navigator.pop(ctx); // Close dialog
+                        context.pop(); // Go back to list
+                      },
+                      child: const Text('Xoá'),
+                    ),
+                  ],
+                ),
+              );
+            },
+          ),
+          IconButton(
+            icon: const Icon(Icons.edit),
+            onPressed: () {
+              showDialog(
+                context: context,
+                builder: (_) => _AddRecipeDialog(recipe: entity),
+              );
+            },
+          ),
+        ],
+      ),
       body: SingleChildScrollView(
-        padding: const EdgeInsets.all(16),
+        padding: const EdgeInsets.fromLTRB(16, 0, 16, 32),
         child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // Header Image if available
+            if (imageUrl != null)
+              ClipRRect(
+                borderRadius: BorderRadius.circular(16),
+                child: Image.network(
+                  imageUrl,
+                  width: double.infinity,
+                  height: 200,
+                  fit: BoxFit.cover,
+                ),
+              ).animate().fadeIn(),
+            const SizedBox(height: 16),
+            Text(
+              name,
+              style: Theme.of(
+                context,
+              ).textTheme.headlineSmall?.copyWith(fontWeight: FontWeight.bold),
+            ),
+            const Divider(height: 32),
             HtmlWidget(
               htmlContent,
-              textStyle: const TextStyle(fontSize: 16),
-            ).animate().fadeIn(duration: 500.ms),
+              textStyle: const TextStyle(
+                fontSize: 16,
+                height: 1.5,
+                color: Colors.black87,
+              ),
+            ),
           ],
         ),
       ),
@@ -138,6 +324,130 @@ class RecipeDetailScreen extends StatelessWidget {
   }
 }
 
-final allRecipesProvider = FutureProvider.autoDispose((ref) async {
-  return ref.read(recipeRepositoryProvider).getAllRecipes();
-});
+class _AddRecipeDialog extends StatefulWidget {
+  final Recipe? recipe;
+  const _AddRecipeDialog({this.recipe});
+
+  @override
+  State<_AddRecipeDialog> createState() => _AddRecipeDialogState();
+}
+
+class _AddRecipeDialogState extends State<_AddRecipeDialog> {
+  final _nameController = TextEditingController();
+  final _foodNameController = TextEditingController();
+  final _contentController = TextEditingController();
+
+  @override
+  void initState() {
+    super.initState();
+    if (widget.recipe != null) {
+      _nameController.text = widget.recipe!.name;
+      _foodNameController.text = widget.recipe!.foodName ?? '';
+      _contentController.text = widget.recipe!.htmlContent ?? '';
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final isEdit = widget.recipe != null;
+    return BlocConsumer<RecipeBloc, RecipeState>(
+      listenWhen: (prev, curr) =>
+          (prev.isLoadingAction && !curr.isLoadingAction),
+      listener: (context, state) {
+        if (state.errorMessage == null && !state.isLoadingAction) {
+          Navigator.pop(context); // Close dialog on success
+        } else if (state.errorMessage != null) {
+          ScaffoldMessenger.of(
+            context,
+          ).showSnackBar(SnackBar(content: Text('Lỗi: ${state.errorMessage}')));
+        }
+      },
+      builder: (context, state) {
+        return AlertDialog(
+          title: Text(isEdit ? 'Sửa công thức' : 'Thêm công thức'),
+          content: SingleChildScrollView(
+            child: Column(
+              children: [
+                TextField(
+                  controller: _foodNameController,
+                  decoration: const InputDecoration(
+                    labelText: 'Tên món ăn (gắn với thực phẩm)',
+                  ),
+                  enabled: !isEdit,
+                ),
+                TextField(
+                  controller: _nameController,
+                  decoration: const InputDecoration(labelText: 'Tên công thức'),
+                ),
+                TextField(
+                  controller: _contentController,
+                  decoration: const InputDecoration(
+                    labelText: 'Cách làm (Mỗi bước 1 dòng)',
+                    alignLabelWithHint: true,
+                    helperText: 'Nhập nội dung, xuống dòng để tách đoạn.',
+                  ),
+                  maxLines: 8,
+                  keyboardType: TextInputType.multiline,
+                ),
+              ],
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text('Huỷ'),
+            ),
+            FilledButton(
+              onPressed: state.isLoadingAction
+                  ? null
+                  : () {
+                      final raw = _contentController.text;
+                      if (raw.trim().isEmpty) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(
+                            content: Text('Vui lòng nhập cách làm'),
+                          ),
+                        );
+                        return;
+                      }
+                      final formattedHtml = raw
+                          .split('\n')
+                          .where((line) => line.trim().isNotEmpty)
+                          .map((line) => '<p>${line.trim()}</p>')
+                          .join('');
+
+                      if (isEdit) {
+                        context.read<RecipeBloc>().add(
+                          UpdateRecipe(
+                            id: widget.recipe!.id,
+                            name: _nameController.text,
+                            content: formattedHtml,
+                          ),
+                        );
+                      } else {
+                        context.read<RecipeBloc>().add(
+                          CreateRecipe(
+                            name: _nameController.text,
+                            foodName: _foodNameController.text,
+                            content: formattedHtml,
+                          ),
+                        );
+                      }
+                    },
+              child: state.isLoadingAction
+                  ? const SizedBox(
+                      width: 20,
+                      height: 20,
+                      child: CircularProgressIndicator(
+                        strokeWidth: 2,
+                        color: Colors.white,
+                      ),
+                    )
+                  : Text(isEdit ? 'Lưu' : 'Thêm'),
+            ),
+          ],
+        );
+      },
+    );
+  }
+}

@@ -1,15 +1,16 @@
+import 'package:dio/dio.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
-import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:nutriary_fe/src/features/auth/data/dio_provider.dart';
+import 'package:injectable/injectable.dart';
 
+@lazySingleton
 class NotificationService {
-  final Ref ref;
+  final Dio _dio;
   final FirebaseMessaging _fcm = FirebaseMessaging.instance;
   final FlutterLocalNotificationsPlugin _localNotifications =
       FlutterLocalNotificationsPlugin();
 
-  NotificationService(this.ref);
+  NotificationService(this._dio);
 
   Future<void> initialize() async {
     try {
@@ -80,15 +81,12 @@ class NotificationService {
 
   Future<void> _sendTokenToBackend(String token) async {
     try {
-      final dio = ref.read(dioProvider);
       // Wait for auth? DioProvider gets token from storage.
       // We might need to handle this only if logged in.
       // But typically dio interceptor attaches token if available.
-      await dio.put('/user/fcm-token', data: {'token': token});
+      await _dio.put('/user/fcm-token', data: {'token': token});
     } catch (e) {
       print('Failed to send FCM token: $e');
     }
   }
 }
-
-final notificationServiceProvider = Provider((ref) => NotificationService(ref));

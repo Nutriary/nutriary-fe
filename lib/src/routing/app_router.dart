@@ -1,29 +1,29 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:injectable/injectable.dart';
 import 'package:nutriary_fe/src/features/auth/presentation/login_screen.dart';
-import 'package:riverpod_annotation/riverpod_annotation.dart';
-
 import 'package:nutriary_fe/src/features/auth/presentation/register_screen.dart';
-
 import 'package:nutriary_fe/src/features/home/presentation/home_screen.dart';
-
 import 'package:nutriary_fe/src/features/shopping_list/presentation/shopping_list_detail_screen.dart';
 import 'package:nutriary_fe/src/features/fridge/presentation/fridge_screen.dart';
 import 'package:nutriary_fe/src/features/recipe/presentation/recipe_screen.dart';
 import 'package:nutriary_fe/src/features/meal_plan/presentation/meal_plan_screen.dart';
-
+import 'package:nutriary_fe/src/features/group/presentation/group_management_screen.dart';
+import 'package:nutriary_fe/src/features/settings/presentation/settings_screen.dart';
+import 'package:nutriary_fe/src/features/notification/presentation/notification_screen.dart';
 import 'package:nutriary_fe/src/features/splash/presentation/splash_screen.dart';
 import 'package:nutriary_fe/src/features/onboarding/presentation/onboarding_screen.dart';
+import 'package:nutriary_fe/src/features/statistics/presentation/statistics_screen.dart';
+import 'package:nutriary_fe/src/features/admin/presentation/admin_screen.dart';
 import 'package:nutriary_fe/src/routing/scaffold_with_navbar.dart';
+import 'package:nutriary_fe/src/features/recipe/domain/entities/recipe.dart';
 
-part 'app_router.g.dart';
+@lazySingleton
+class AppRouter {
+  final GlobalKey<NavigatorState> _rootNavigatorKey =
+      GlobalKey<NavigatorState>();
 
-final _rootNavigatorKey = GlobalKey<NavigatorState>();
-
-@riverpod
-GoRouter goRouter(Ref ref) {
-  return GoRouter(
+  late final GoRouter router = GoRouter(
     navigatorKey: _rootNavigatorKey,
     initialLocation: '/splash',
     debugLogDiagnostics: true,
@@ -41,6 +41,23 @@ GoRouter goRouter(Ref ref) {
         path: '/register',
         builder: (context, state) => const RegisterScreen(),
       ),
+      GoRoute(
+        path: '/group-management',
+        builder: (context, state) => const GroupManagementScreen(),
+      ),
+      GoRoute(
+        path: '/settings',
+        builder: (context, state) => const SettingsScreen(),
+      ),
+      GoRoute(
+        path: '/notifications',
+        builder: (context, state) => const NotificationScreen(),
+      ),
+      GoRoute(
+        path: '/statistics',
+        builder: (context, state) => const StatisticsScreen(),
+      ),
+      GoRoute(path: '/admin', builder: (context, state) => const AdminScreen()),
       // Stateful Nested Navigation
       StatefulShellRoute.indexedStack(
         builder: (context, state, navigationShell) {
@@ -83,7 +100,7 @@ GoRouter goRouter(Ref ref) {
                   GoRoute(
                     path: ':id',
                     builder: (context, state) {
-                      return RecipeDetailScreen(recipe: state.extra);
+                      return RecipeDetailScreen(recipe: state.extra as Recipe?);
                     },
                   ),
                 ],
