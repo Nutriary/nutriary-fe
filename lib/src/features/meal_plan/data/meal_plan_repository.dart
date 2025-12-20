@@ -18,21 +18,31 @@ class MealPlanRepository {
   Future<List<dynamic>> getMealPlan(DateTime date) async {
     try {
       final formattedDate = date.toIso8601String().split('T')[0];
-      final response = await _dio.get('/meal-plan', queryParameters: {'date': formattedDate});
+      final response = await _dio.get(
+        '/meal',
+        queryParameters: {'date': formattedDate},
+      );
       return response.data as List<dynamic>;
     } on DioException catch (e) {
       throw e.response?.data['message'] ?? 'Failed to fetch meal plan';
     }
   }
 
-  Future<void> addMealPlan(DateTime date, String mealType, String foodName, int? recipeId) async {
+  Future<void> addMealPlan(
+    DateTime date,
+    String mealType,
+    String foodName,
+    int? recipeId,
+  ) async {
     try {
-      await _dio.post('/meal-plan', data: {
-        'date': date.toIso8601String().split('T')[0],
-        'mealType': mealType,
-        'foodName': foodName,
-        if (recipeId != null) 'recipeId': recipeId,
-      });
+      await _dio.post(
+        '/meal',
+        data: {
+          'name': mealType,
+          'foodName': foodName,
+          'timestamp': date.toIso8601String(), // Service expects timestamp
+        },
+      );
     } on DioException catch (e) {
       throw e.response?.data['message'] ?? 'Failed to add meal';
     }
@@ -40,9 +50,21 @@ class MealPlanRepository {
 
   Future<void> deleteMealPlan(int id) async {
     try {
-      await _dio.delete('/meal-plan/$id');
+      await _dio.delete(
+        '/meal',
+        data: {'planId': id},
+      ); // Controller uses DeleteMealPlanDto with planId (Step 751 line 50)
     } on DioException catch (e) {
       throw e.response?.data['message'] ?? 'Failed to delete meal';
+    }
+  }
+
+  Future<List<dynamic>> getSuggestions() async {
+    try {
+      final response = await _dio.get('/meal/suggest');
+      return response.data as List<dynamic>;
+    } on DioException catch (e) {
+      throw e.response?.data['message'] ?? 'Failed to get suggestions';
     }
   }
 }

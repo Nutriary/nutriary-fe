@@ -178,6 +178,12 @@ class _FridgeScreenState extends ConsumerState<FridgeScreen> {
     }
 
     return GestureDetector(
+      onTap: () {
+        showDialog(
+          context: context,
+          builder: (_) => _EditFridgeItemDialog(item: item),
+        ).then((_) => ref.refresh(fridgeItemsProvider));
+      },
       onLongPress: () {
         _showDeleteDialog(context, foodName);
       },
@@ -314,6 +320,107 @@ class _FridgeScreenState extends ConsumerState<FridgeScreen> {
           ),
         ],
       ),
+    );
+  }
+}
+
+class _EditFridgeItemDialog extends ConsumerStatefulWidget {
+  final dynamic item;
+  const _EditFridgeItemDialog({required this.item});
+  @override
+  ConsumerState<_EditFridgeItemDialog> createState() =>
+      _EditFridgeItemDialogState();
+}
+
+class _EditFridgeItemDialogState extends ConsumerState<_EditFridgeItemDialog> {
+  late TextEditingController _qtyController;
+  DateTime? _selectedDate;
+  bool _isLoading = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _qtyController = TextEditingController(text: widget.item['quantity']);
+    if (widget.item['use_within'] != null) {
+      _selectedDate = DateTime.tryParse(widget.item['use_within']);
+    }
+  }
+
+  Future<void> _save() async {
+    setState(() => _isLoading = true);
+    try {
+      await ref
+          .read(fridgeRepositoryProvider)
+          .updateFridgeItem(
+            widget.item['food']['name'],
+            quantity: _qtyController.text,
+            useWithin: _selectedDate,
+          );
+      if (mounted) Navigator.pop(context);
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('Lỗi: $e')));
+        setState(() => _isLoading = false);
+      }
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AlertDialog(
+      title: Text('Sửa ${widget.item['food']['name']}'),
+      content: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          TextField(
+            controller: _qtyController,
+            decoration: const InputDecoration(
+              labelText: 'Số lượng',
+              border: OutlineInputBorder(),
+            ),
+          ),
+          const SizedBox(height: 12),
+          InkWell(
+            onTap: () async {
+              final date = await showDatePicker(
+                context: context,
+                initialDate:
+                    _selectedDate ??
+                    DateTime.now().add(const Duration(days: 3)),
+                firstDate: DateTime.now(),
+                lastDate: DateTime.now().add(const Duration(days: 365)),
+              );
+              if (date != null) setState(() => _selectedDate = date);
+            },
+            child: InputDecorator(
+              decoration: const InputDecoration(
+                labelText: 'Hạn sử dụng',
+                border: OutlineInputBorder(),
+                prefixIcon: Icon(Icons.calendar_today),
+              ),
+              child: Text(
+                _selectedDate != null
+                    ? "${_selectedDate!.day}/${_selectedDate!.month}/${_selectedDate!.year}"
+                    : 'Chưa đặt',
+              ),
+            ),
+          ),
+        ],
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.pop(context),
+          child: const Text('Huỷ'),
+        ),
+        FilledButton(
+          onPressed: _isLoading ? null : _save,
+          child: _isLoading
+              ? const CircularProgressIndicator(color: Colors.white)
+              : const Text('Lưu'),
+        ),
+      ],
     );
   }
 }

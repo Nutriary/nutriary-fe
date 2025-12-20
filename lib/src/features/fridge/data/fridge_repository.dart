@@ -24,15 +24,39 @@ class FridgeRepository {
     }
   }
 
-  Future<void> addFridgeItem(String foodName, String quantity, DateTime? useWithin) async {
+  Future<void> addFridgeItem(
+    String foodName,
+    String quantity,
+    DateTime? useWithin,
+  ) async {
     try {
-      await _dio.post('/fridge', data: {
-        'foodName': foodName,
-        'quantity': quantity,
-        if (useWithin != null) 'useWithin': useWithin.toIso8601String(),
-      });
+      await _dio.post(
+        '/fridge',
+        data: {
+          'foodName': foodName,
+          'quantity': quantity,
+          if (useWithin != null) 'useWithin': useWithin.toIso8601String(),
+        },
+      );
     } on DioException catch (e) {
       throw e.response?.data['message'] ?? 'Failed to add item';
+    }
+  }
+
+  Future<void> updateFridgeItem(
+    String foodName, {
+    String? quantity,
+    DateTime? useWithin,
+  }) async {
+    // Header handled by Interceptor
+    try {
+      final data = {'foodName': foodName};
+      if (quantity != null) data['quantity'] = quantity;
+      if (useWithin != null) data['useWithin'] = useWithin.toIso8601String();
+
+      await _dio.put('/fridge', data: data);
+    } on DioException catch (e) {
+      throw e.response?.data['message'] ?? 'Failed to update item';
     }
   }
 

@@ -30,6 +30,13 @@ class _MealPlanScreenState extends ConsumerState<MealPlanScreen> {
         centerTitle: true,
         actions: [
           IconButton(
+            icon: const Icon(
+              LucideIcons.lightbulb,
+              color: Colors.orange,
+            ), // Idea icon
+            onPressed: () => _showSuggestionsDialog(context),
+          ),
+          IconButton(
             icon: const Icon(LucideIcons.calendarDays, color: Colors.black87),
             onPressed: () async {
               final picked = await showDatePicker(
@@ -134,6 +141,26 @@ class _MealPlanScreenState extends ConsumerState<MealPlanScreen> {
         ],
       ),
     );
+  }
+
+  void _showSuggestionsDialog(BuildContext context) {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (ctx) => DraggableScrollableSheet(
+        initialChildSize: 0.6,
+        maxChildSize: 0.9,
+        minChildSize: 0.4,
+        expand: false,
+        builder: (context, scrollController) => _SuggestionsSheet(
+          date: _selectedDate,
+          scrollController: scrollController,
+        ),
+      ),
+    ).then((_) => ref.refresh(mealPlanProvider(_selectedDate)));
   }
 
   List<dynamic> _filterMeals(List<dynamic> meals, String type) {
@@ -407,6 +434,116 @@ class _AddMealDialogState extends ConsumerState<_AddMealDialog> {
     );
   }
 }
+
+class _SuggestionsSheet extends ConsumerStatefulWidget {
+  final DateTime date;
+  final ScrollController scrollController;
+  const _SuggestionsSheet({required this.date, required this.scrollController});
+
+  @override
+  ConsumerState<_SuggestionsSheet> createState() => _SuggestionsSheetState();
+}
+
+class _SuggestionsSheetState extends ConsumerState<_SuggestionsSheet> {
+  final List<String> _types = ['Bữa Sáng', 'Bữa Trưa', 'Bữa Tối', 'Bữa Phụ'];
+
+  @override
+  Widget build(BuildContext context) {
+    final suggestionsAsync = ref.watch(suggestionsProvider);
+
+    return Column(
+      children: [
+        Padding(
+          padding: const EdgeInsets.all(16),
+          child: Text(
+            'Gợi ý từ Tủ lạnh',
+            style: Theme.of(
+              context,
+            ).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.bold),
+          ),
+        ),
+        Expanded(
+          child: suggestionsAsync.when(
+            data: (recipes) {
+              if (recipes.isEmpty) {
+                return const Center(
+                  child: Text('Không có gợi ý nào từ tủ lạnh của bạn.'),
+                );
+              }
+              return ListView.builder(
+                controller: widget.scrollController,
+                itemCount: recipes.length,
+                itemBuilder: (context, index) {
+                  final recipe = recipes[index];
+                  final foodName = recipe['food']?['name'] ?? 'Món lạ';
+                  final imageUrl = recipe['food']?['foodImageUrl'];
+
+                  return ListTile(
+                    leading: CircleAvatar(
+                      backgroundImage: imageUrl != null
+                          ? NetworkImage(imageUrl)
+                          : null,
+                      child: imageUrl == null
+                          ? const Icon(LucideIcons.chefHat)
+                          : null,
+                    ),
+                    title: Text(foodName),
+                    subtitle: const Text('Có sẵn trong tủ lạnh'),
+                    trailing: IconButton(
+                      icon: const Icon(Icons.add_circle, color: Colors.green),
+                      onPressed: () {
+                        _showAddDialog(context, foodName);
+                      },
+                    ),
+                  );
+                },
+              );
+            },
+            loading: () => const Center(child: CircularProgressIndicator()),
+            error: (e, s) => Center(child: Text('Lỗi: $e')),
+          ),
+        ),
+      ],
+    );
+  }
+
+  void _showAddDialog(BuildContext context, String foodName) {
+    showDialog(
+      context: context,
+      builder: (_) => AlertDialog(
+        title: Text('Thêm $foodName vào thực đơn'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: _types
+              .map(
+                (type) => ListTile(
+                  title: Text(type),
+                  onTap: () {
+                    Navigator.pop(context); // Close dialog
+                    // Add to meal plan
+                    ref
+                        .read(mealPlanRepositoryProvider)
+                        .addMealPlan(widget.date, type, foodName, null)
+                        .then((_) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(
+                              content: Text('Đã thêm $foodName vào $type'),
+                            ),
+                          );
+                        });
+                  },
+                ),
+              )
+              .toList(),
+        ),
+      ),
+    );
+  }
+}
+
+final suggestionsProvider = FutureProvider.autoDispose((ref) async {
+  return ref.read(mealPlanRepositoryProvider).getSuggestions();
+});
 
 final mealPlanProvider = FutureProvider.autoDispose
     .family<List<dynamic>, DateTime>((ref, date) async {

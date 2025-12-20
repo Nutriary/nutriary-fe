@@ -101,128 +101,221 @@ class _ShoppingListDetailScreenState
             );
           }
 
-          return ReorderableListView.builder(
-            padding: const EdgeInsets.only(bottom: 80, top: 8),
-            itemCount: _localTasks.length,
-            onReorder: (oldIndex, newIndex) {
-              setState(() {
-                if (oldIndex < newIndex) {
-                  newIndex -= 1;
-                }
-                final item = _localTasks.removeAt(oldIndex);
-                _localTasks.insert(newIndex, item);
-              });
-
-              // Debounce API call
-              if (_debounce?.isActive ?? false) _debounce!.cancel();
-              _debounce = Timer(const Duration(milliseconds: 1000), () {
-                ref.read(shoppingRepositoryProvider).reorderTasks(_localTasks);
-              });
-            },
-            itemBuilder: (context, index) {
-              final task = _localTasks[index];
-              final id = task['id'];
-              final foodName = task['food']?['name'] ?? 'Món lạ';
-              final quantity = task['quantity'] ?? '1';
-              final imageUrl = task['food']?['foodImageUrl'];
-
-              return Dismissible(
-                key: ValueKey(id),
-                direction: DismissDirection.endToStart,
-                background: Container(
-                  color: Colors.redAccent,
-                  alignment: Alignment.centerRight,
-                  padding: const EdgeInsets.only(right: 20),
-                  child: const Icon(Icons.delete, color: Colors.white),
-                ),
-                onDismissed: (direction) {
-                  // Optimistic remove
-                  final removedItem = task;
-                  setState(() {
-                    _localTasks.removeAt(index);
-                  });
-
-                  ref
-                      .read(shoppingRepositoryProvider)
-                      .deleteTask(id)
-                      .catchError((e) {
-                        // Rollback if failed
-                        setState(() {
-                          _localTasks.insert(index, removedItem);
-                        });
-                        ScaffoldMessenger.of(
-                          context,
-                        ).showSnackBar(SnackBar(content: Text('Lỗi xoá: $e')));
-                      });
-                },
-                child: Container(
-                  key: ValueKey(id), // Required for ReorderableListView
-                  margin: const EdgeInsets.symmetric(
+          return Column(
+            children: [
+              // Progress Bar
+              if (_localTasks.isNotEmpty) ...[
+                Padding(
+                  padding: const EdgeInsets.symmetric(
                     horizontal: 16,
-                    vertical: 4,
+                    vertical: 8,
                   ),
-                  decoration: BoxDecoration(
-                    color: Colors.white,
-                    borderRadius: BorderRadius.circular(12),
-                    boxShadow: [
-                      BoxShadow(
-                        color: Colors.black.withOpacity(0.03),
-                        blurRadius: 4,
-                        offset: const Offset(0, 2),
-                      ),
-                    ],
-                  ),
-                  child: ListTile(
-                    contentPadding: const EdgeInsets.symmetric(
-                      horizontal: 12,
-                      vertical: 4,
-                    ),
-                    leading: Container(
-                      width: 48,
-                      height: 48,
-                      decoration: BoxDecoration(
-                        borderRadius: BorderRadius.circular(8),
-                        color: Colors.grey[200],
-                        image: imageUrl != null
-                            ? DecorationImage(
-                                image: NetworkImage(imageUrl),
-                                fit: BoxFit.cover,
-                              )
-                            : null,
-                      ),
-                      child: imageUrl == null
-                          ? const Icon(
-                              Icons.fastfood,
-                              size: 20,
-                              color: Colors.grey,
-                            )
-                          : null,
-                    ),
-                    title: Text(
-                      foodName,
-                      style: const TextStyle(
-                        fontWeight: FontWeight.w600,
-                        fontSize: 16,
-                      ),
-                    ),
-                    subtitle: Text(
-                      'SL: $quantity',
-                      style: TextStyle(
-                        color: Colors.green[700],
-                        fontWeight: FontWeight.w500,
-                      ),
-                    ),
-                    trailing: const Icon(Icons.drag_handle, color: Colors.grey),
+                  child: Builder(
+                    builder: (context) {
+                      final total = _localTasks.length;
+                      final done = _localTasks
+                          .where((t) => t['isBought'] == true)
+                          .length;
+                      final progress = done / total;
+                      return Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            'Đã mua: $done/$total',
+                            style: TextStyle(
+                              color: Colors.grey[600],
+                              fontSize: 13,
+                            ),
+                          ),
+                          const SizedBox(height: 4),
+                          LinearProgressIndicator(
+                            value: progress,
+                            backgroundColor: Colors.grey[200],
+                            borderRadius: BorderRadius.circular(4),
+                            color: Colors.green,
+                          ),
+                        ],
+                      );
+                    },
                   ),
                 ),
-              );
-            },
-          );
+              ],
+
+              Expanded(
+                child: ReorderableListView.builder(
+                  padding: const EdgeInsets.only(bottom: 80, top: 4),
+                  itemCount: _localTasks.length,
+                  onReorder: (oldIndex, newIndex) {
+                    setState(() {
+                      if (oldIndex < newIndex) {
+                        newIndex -= 1;
+                      }
+                      final item = _localTasks.removeAt(oldIndex);
+                      _localTasks.insert(newIndex, item);
+                    });
+
+                    // Debounce API call
+                    if (_debounce?.isActive ?? false) _debounce!.cancel();
+                    _debounce = Timer(const Duration(milliseconds: 1000), () {
+                      ref
+                          .read(shoppingRepositoryProvider)
+                          .reorderTasks(_localTasks);
+                    });
+                  },
+                  itemBuilder: (context, index) {
+                    final task = _localTasks[index];
+                    final id = task['id'];
+                    final foodName = task['food']?['name'] ?? 'Món lạ';
+                    final quantity = task['quantity'] ?? '1';
+                    final imageUrl = task['food']?['foodImageUrl'];
+                    final isBought = task['isBought'] == true;
+
+                    return Dismissible(
+                      key: ValueKey(id),
+                      direction: DismissDirection.endToStart,
+                      background: Container(
+                        color: Colors.redAccent,
+                        alignment: Alignment.centerRight,
+                        padding: const EdgeInsets.only(right: 20),
+                        child: const Icon(Icons.delete, color: Colors.white),
+                      ),
+                      onDismissed: (direction) {
+                        // Optimistic remove
+                        final removedItem = task;
+                        setState(() {
+                          _localTasks.removeAt(index);
+                        });
+
+                        ref
+                            .read(shoppingRepositoryProvider)
+                            .deleteTask(id)
+                            .catchError((e) {
+                              // Rollback if failed
+                              setState(() {
+                                _localTasks.insert(index, removedItem);
+                              });
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                SnackBar(content: Text('Lỗi xoá: $e')),
+                              );
+                            });
+                      },
+                      child: Container(
+                        key: ValueKey(id), // Required for ReorderableListView
+                        margin: const EdgeInsets.symmetric(
+                          horizontal: 16,
+                          vertical: 4,
+                        ),
+                        decoration: BoxDecoration(
+                          color: isBought ? Colors.grey[50] : Colors.white,
+                          borderRadius: BorderRadius.circular(12),
+                          border: isBought
+                              ? Border.all(color: Colors.grey[300]!)
+                              : null,
+                          boxShadow: isBought
+                              ? []
+                              : [
+                                  BoxShadow(
+                                    color: Colors.black.withOpacity(0.03),
+                                    blurRadius: 4,
+                                    offset: const Offset(0, 2),
+                                  ),
+                                ],
+                        ),
+                        child: CheckboxListTile(
+                          value: isBought,
+                          onChanged: (val) {
+                            setState(() {
+                              // Update local state immediately
+                              task['isBought'] = val;
+                            });
+                            // Call API
+                            ref
+                                .read(shoppingRepositoryProvider)
+                                .updateTask(id, isBought: val);
+                          },
+                          contentPadding: const EdgeInsets.symmetric(
+                            horizontal: 8, // Reduced padding
+                            vertical: 4,
+                          ),
+                          controlAffinity: ListTileControlAffinity.leading,
+                          secondary: const Icon(
+                            Icons.drag_handle,
+                            color: Colors.grey,
+                          ), // Drag handle on right
+                          title: Row(
+                            children: [
+                              Container(
+                                width: 40,
+                                height: 40,
+                                margin: const EdgeInsets.only(right: 12),
+                                decoration: BoxDecoration(
+                                  borderRadius: BorderRadius.circular(8),
+                                  color: Colors.grey[200],
+                                  image: imageUrl != null
+                                      ? DecorationImage(
+                                          image: NetworkImage(imageUrl),
+                                          fit: BoxFit.cover,
+                                          colorFilter: isBought
+                                              ? const ColorFilter.mode(
+                                                  Colors.grey,
+                                                  BlendMode.saturation,
+                                                )
+                                              : null,
+                                        )
+                                      : null,
+                                ),
+                                child: imageUrl == null
+                                    ? const Icon(
+                                        Icons.fastfood,
+                                        size: 20,
+                                        color: Colors.grey,
+                                      )
+                                    : null,
+                              ),
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(
+                                      foodName,
+                                      style: TextStyle(
+                                        fontWeight: FontWeight.w600,
+                                        fontSize: 16,
+                                        decoration: isBought
+                                            ? TextDecoration.lineThrough
+                                            : null,
+                                        color: isBought
+                                            ? Colors.grey
+                                            : Colors.black87,
+                                      ),
+                                    ),
+                                    Text(
+                                      'SL: $quantity',
+                                      style: TextStyle(
+                                        color: isBought
+                                            ? Colors.grey
+                                            : Colors.green[700],
+                                        fontWeight: FontWeight.w500,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                    );
+                  },
+                ),
+              ),
+            ], // End Column children
+          ); // End Column
         },
         loading: () => const Center(child: CircularProgressIndicator()),
         error: (err, stack) => Center(child: Text('Lỗi: $err')),
-      ),
-    );
+      ), // End AsyncValue.when
+    ); // End Scaffold
   }
 }
 

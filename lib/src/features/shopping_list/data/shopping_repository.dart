@@ -77,6 +77,23 @@ class ShoppingRepository {
     }
   }
 
+  Future<void> updateTask(
+    int taskId, {
+    bool? isBought,
+    String? quantity,
+  }) async {
+    await _addAuthHeader();
+    try {
+      final data = <String, dynamic>{'taskId': taskId};
+      if (isBought != null) data['isBought'] = isBought;
+      if (quantity != null) data['newQuantity'] = quantity;
+
+      await _dio.put('/shopping/task', data: data);
+    } on DioException catch (e) {
+      throw e.response?.data['message'] ?? 'Failed to update task';
+    }
+  }
+
   Future<void> reorderTasks(List<dynamic> items) async {
     await _addAuthHeader();
     try {

@@ -5,6 +5,7 @@ import 'package:nutriary_fe/src/features/group/data/group_repository.dart';
 import 'package:nutriary_fe/src/features/shopping_list/data/shopping_repository.dart';
 import 'package:nutriary_fe/src/features/fridge/data/fridge_repository.dart';
 import 'package:nutriary_fe/src/features/recipe/data/recipe_repository.dart';
+import 'package:nutriary_fe/src/common_widgets/user_drawer.dart';
 
 class HomeScreen extends ConsumerStatefulWidget {
   const HomeScreen({super.key});
@@ -14,6 +15,8 @@ class HomeScreen extends ConsumerStatefulWidget {
 }
 
 class _HomeScreenState extends ConsumerState<HomeScreen> {
+  final _scaffoldKey = GlobalKey<ScaffoldState>();
+
   @override
   Widget build(BuildContext context) {
     final groupAsync = ref.watch(myGroupProvider);
@@ -21,6 +24,8 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     final recipesAsync = ref.watch(featuredRecipesProvider);
 
     return Scaffold(
+      key: _scaffoldKey,
+      drawer: const UserDrawer(),
       body: RefreshIndicator(
         onRefresh: () async {
           ref.refresh(myGroupProvider);
@@ -57,9 +62,15 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                 ),
               ),
               actions: [
-                IconButton(
-                  icon: const Icon(Icons.logout),
-                  onPressed: () => context.go('/login'),
+                Padding(
+                  padding: const EdgeInsets.only(right: 16.0),
+                  child: GestureDetector(
+                    onTap: () => _scaffoldKey.currentState?.openDrawer(),
+                    child: const CircleAvatar(
+                      backgroundColor: Colors.white,
+                      child: Icon(Icons.person, color: Colors.black87),
+                    ),
+                  ),
                 ),
               ],
             ),
