@@ -19,13 +19,17 @@ class CreateRecipe extends RecipeEvent {
   final String name;
   final String foodName;
   final String content;
+  final bool isPublic;
+  final int? groupId;
   const CreateRecipe({
     required this.name,
     required this.foodName,
     required this.content,
+    this.isPublic = true,
+    this.groupId,
   });
   @override
-  List<Object?> get props => [name, foodName, content];
+  List<Object?> get props => [name, foodName, content, isPublic, groupId];
 }
 
 class UpdateRecipe extends RecipeEvent {

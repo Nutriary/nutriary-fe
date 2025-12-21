@@ -5,9 +5,9 @@ import 'package:google_fonts/google_fonts.dart';
 class AppTheme {
   const AppTheme._();
 
-  static ThemeData lightTheme() {
+  static ThemeData lightTheme({FlexScheme scheme = FlexScheme.jungle}) {
     return FlexThemeData.light(
-      scheme: FlexScheme.jungle,
+      scheme: scheme,
       surfaceMode: FlexSurfaceMode.levelSurfacesLowScaffold,
       blendLevel: 7,
       subThemesData: const FlexSubThemesData(
@@ -25,9 +25,9 @@ class AppTheme {
     );
   }
 
-  static ThemeData darkTheme() {
+  static ThemeData darkTheme({FlexScheme scheme = FlexScheme.jungle}) {
     return FlexThemeData.dark(
-      scheme: FlexScheme.jungle,
+      scheme: scheme,
       surfaceMode: FlexSurfaceMode.levelSurfacesLowScaffold,
       blendLevel: 13,
       subThemesData: const FlexSubThemesData(

@@ -69,3 +69,16 @@ class RemoveItem extends FridgeEvent {
   @override
   List<Object?> get props => [foodName, groupId];
 }
+
+class ConsumeItem extends FridgeEvent {
+  final String foodName;
+  final double quantity;
+  final int? groupId;
+  const ConsumeItem({
+    required this.foodName,
+    required this.quantity,
+    this.groupId,
+  });
+  @override
+  List<Object?> get props => [foodName, quantity, groupId];
+}

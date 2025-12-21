@@ -62,18 +62,16 @@ class _HomeScreenState extends State<HomeScreen> {
             slivers: [
               // App Bar & Greeting
               SliverAppBar(
-                expandedHeight: 120.0,
-                floating: true,
+                expandedHeight: 140.0,
+                floating: false,
                 pinned: true,
+                backgroundColor: Theme.of(context).colorScheme.primaryContainer,
+                foregroundColor: Colors.black87,
+                title: const Text(
+                  'Xin chào!',
+                  style: TextStyle(fontWeight: FontWeight.bold),
+                ),
                 flexibleSpace: FlexibleSpaceBar(
-                  titlePadding: const EdgeInsets.only(left: 16, bottom: 16),
-                  title: const Text(
-                    'Xin chào!',
-                    style: TextStyle(
-                      color: Colors.black87,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
                   background: Container(
                     decoration: BoxDecoration(
                       gradient: LinearGradient(
@@ -88,6 +86,11 @@ class _HomeScreenState extends State<HomeScreen> {
                   ),
                 ),
                 actions: [
+                  // Notification bell
+                  IconButton(
+                    icon: const Icon(Icons.notifications_outlined),
+                    onPressed: () => context.push('/notifications'),
+                  ),
                   Padding(
                     padding: const EdgeInsets.only(right: 16.0),
                     child: GestureDetector(

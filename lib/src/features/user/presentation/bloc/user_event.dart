@@ -8,6 +8,8 @@ abstract class UserEvent extends Equatable {
 
 class LoadUserProfile extends UserEvent {}
 
+class ClearUserState extends UserEvent {}
+
 class UpdateFcmToken extends UserEvent {
   final String token;
   const UpdateFcmToken(this.token);

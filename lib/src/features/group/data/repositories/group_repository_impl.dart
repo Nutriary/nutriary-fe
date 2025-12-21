@@ -70,4 +70,18 @@ class GroupRepositoryImpl implements GroupRepository {
       return Left(ServerFailure(e.toString()));
     }
   }
+
+  @override
+  Future<Either<Failure, void>> removeMember(int groupId, int userId) async {
+    try {
+      await remoteDataSource.removeMember(groupId, userId);
+      return const Right(null);
+    } on DioException catch (e) {
+      return Left(
+        ServerFailure(e.response?.data['message'] ?? 'Failed to remove member'),
+      );
+    } catch (e) {
+      return Left(ServerFailure(e.toString()));
+    }
+  }
 }

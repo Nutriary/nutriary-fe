@@ -8,6 +8,7 @@ abstract class GroupRemoteDataSource {
   Future<GroupDetailModel> getGroupDetail(int groupId);
   Future<void> createGroup(String name);
   Future<void> addMember(String username);
+  Future<void> removeMember(int groupId, int userId);
 }
 
 @LazySingleton(as: GroupRemoteDataSource)
@@ -51,5 +52,10 @@ class GroupRemoteDataSourceImpl implements GroupRemoteDataSource {
   @override
   Future<void> addMember(String username) async {
     await _dio.post('/user/group/add', data: {'username': username});
+  }
+
+  @override
+  Future<void> removeMember(int groupId, int userId) async {
+    await _dio.delete('/user/group/$groupId/member/$userId');
   }
 }

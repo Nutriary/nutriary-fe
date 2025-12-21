@@ -29,6 +29,16 @@ class AddMember extends GroupEvent {
   List<Object?> get props => [username];
 }
 
+class RemoveMember extends GroupEvent {
+  final int groupId;
+  final int userId;
+
+  const RemoveMember(this.groupId, this.userId);
+
+  @override
+  List<Object> get props => [groupId, userId];
+}
+
 class LoadGroupDetail extends GroupEvent {
   final int groupId;
   const LoadGroupDetail(this.groupId);

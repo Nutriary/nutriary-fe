@@ -14,6 +14,7 @@ class UserBloc extends Bloc<UserEvent, UserState> {
     : super(const UserState()) {
     on<LoadUserProfile>(_onLoadUserProfile);
     on<UpdateFcmToken>(_onUpdateFcmToken);
+    on<ClearUserState>(_onClearUserState);
   }
 
   Future<void> _onLoadUserProfile(
@@ -42,5 +43,9 @@ class UserBloc extends Bloc<UserEvent, UserState> {
       (failure) => null, // Just ignore failure for FCM token update
       (_) => null,
     );
+  }
+
+  void _onClearUserState(ClearUserState event, Emitter<UserState> emit) {
+    emit(const UserState());
   }
 }

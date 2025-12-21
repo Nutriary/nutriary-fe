@@ -8,7 +8,13 @@ import '../models/recipe_model.dart';
 
 abstract class RecipeRemoteDataSource {
   Future<List<RecipeModel>> getAllRecipes();
-  Future<void> createRecipe(String name, String foodName, String content);
+  Future<void> createRecipe(
+    String name,
+    String foodName,
+    String content, {
+    bool isPublic = true,
+    int? groupId,
+  });
   Future<void> updateRecipe(int id, {String? name, String? content});
   Future<void> deleteRecipe(int id);
   Future<List<RecipeModel>> getRecipesByFood(int foodId);
@@ -37,12 +43,20 @@ class RecipeRemoteDataSourceImpl implements RecipeRemoteDataSource {
   Future<void> createRecipe(
     String name,
     String foodName,
-    String content,
-  ) async {
-    await _dio.post(
-      '/recipe',
-      data: {'name': name, 'foodName': foodName, 'htmlContent': content},
-    );
+    String content, {
+    bool isPublic = true,
+    int? groupId,
+  }) async {
+    final body = {
+      'name': name,
+      'foodName': foodName,
+      'htmlContent': content,
+      'isPublic': isPublic,
+    };
+    if (groupId != null) {
+      body['groupId'] = groupId;
+    }
+    await _dio.post('/recipe', data: body);
   }
 
   @override
@@ -95,10 +109,18 @@ class RecipeRepositoryImpl implements RecipeRepository {
   Future<Either<Failure, void>> createRecipe(
     String name,
     String foodName,
-    String content,
-  ) async {
+    String content, {
+    bool isPublic = true,
+    int? groupId,
+  }) async {
     try {
-      await _dataSource.createRecipe(name, foodName, content);
+      await _dataSource.createRecipe(
+        name,
+        foodName,
+        content,
+        isPublic: isPublic,
+        groupId: groupId,
+      );
       return const Right(null);
     } catch (e) {
       if (e is DioException) {

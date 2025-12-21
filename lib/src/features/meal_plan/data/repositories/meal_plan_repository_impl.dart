@@ -99,7 +99,21 @@ class MealPlanRemoteDataSourceImpl implements MealPlanRemoteDataSource {
   Future<List<String>> getSuggestions() async {
     final response = await _dio.get('/meal/suggest');
     final data = response.data['data'];
-    return (data as List?)?.map((e) => e.toString()).toList() ?? [];
+    if (data == null || data is! List) return [];
+
+    // API returns list of Recipe objects with nested 'food' containing 'name'
+    return data.map<String>((recipe) {
+      if (recipe is Map<String, dynamic>) {
+        // Try to get food name from nested food object
+        final food = recipe['food'];
+        if (food is Map<String, dynamic>) {
+          return food['name']?.toString() ?? 'Món ăn';
+        }
+        // Fallback to recipe name if no food
+        return recipe['name']?.toString() ?? 'Món ăn';
+      }
+      return 'Món ăn';
+    }).toList();
   }
 }
 

@@ -4,4 +4,6 @@ import '../entities/notification.dart';
 
 abstract class NotificationRepository {
   Future<Either<Failure, List<NotificationEntity>>> getNotifications();
+  Future<Either<Failure, void>> markAsRead(int id);
+  Future<Either<Failure, void>> markAllRead();
 }

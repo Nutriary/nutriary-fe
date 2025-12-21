@@ -10,7 +10,18 @@ class NotificationScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Thông báo')),
+      appBar: AppBar(
+        title: const Text('Thông báo'),
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.done_all),
+            tooltip: 'Đánh dấu tất cả đã đọc',
+            onPressed: () {
+              context.read<NotificationBloc>().add(MarkAllRead());
+            },
+          ),
+        ],
+      ),
       body: BlocBuilder<NotificationBloc, NotificationState>(
         builder: (context, state) {
           if (state.status == NotificationStatus.loading) {
@@ -35,22 +46,33 @@ class NotificationScreen extends StatelessWidget {
               itemBuilder: (context, index) {
                 final item = notifications[index];
                 final date = item.createdAt;
+                final isRead = item.isRead;
 
                 return ListTile(
+                  tileColor: isRead ? null : Colors.blue.withOpacity(0.05),
+                  onTap: () {
+                    if (!isRead) {
+                      context.read<NotificationBloc>().add(MarkAsRead(item.id));
+                    }
+                  },
                   leading: Container(
                     padding: const EdgeInsets.all(8),
                     decoration: BoxDecoration(
-                      color: Colors.blue.withOpacity(0.1),
+                      color: isRead
+                          ? Colors.grey.withOpacity(0.2)
+                          : Colors.blue.withOpacity(0.1),
                       shape: BoxShape.circle,
                     ),
-                    child: const Icon(
+                    child: Icon(
                       Icons.notifications_outlined,
-                      color: Colors.blue,
+                      color: isRead ? Colors.grey : Colors.blue,
                     ),
                   ),
                   title: Text(
                     item.title,
-                    style: const TextStyle(fontWeight: FontWeight.bold),
+                    style: TextStyle(
+                      fontWeight: isRead ? FontWeight.normal : FontWeight.bold,
+                    ),
                   ),
                   subtitle: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,

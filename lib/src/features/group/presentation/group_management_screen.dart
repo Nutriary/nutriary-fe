@@ -4,6 +4,8 @@ import 'package:lucide_icons/lucide_icons.dart';
 import 'package:nutriary_fe/src/features/group/presentation/bloc/group_bloc.dart';
 import 'package:nutriary_fe/src/features/group/presentation/bloc/group_event.dart';
 import 'package:nutriary_fe/src/features/group/presentation/bloc/group_state.dart';
+import '../domain/entities/group_detail.dart';
+import '../../user/presentation/bloc/user_bloc.dart';
 
 class GroupManagementScreen extends StatefulWidget {
   const GroupManagementScreen({super.key});
@@ -114,6 +116,23 @@ class _GroupManagementScreenState extends State<GroupManagementScreen> {
                     itemCount: members.length,
                     itemBuilder: (context, index) {
                       final member = members[index];
+                      // Check permissions
+                      final userState = context.read<UserBloc>().state;
+                      final currentUser = userState.user;
+                      final myMember = currentUser != null
+                          ? members.firstWhere(
+                              (m) => m.userId == currentUser.id,
+                              orElse: () => GroupMember(
+                                userId: -1,
+                                username: '',
+                                email: '',
+                                role: '',
+                              ),
+                            )
+                          : null;
+                      final bool amIAdmin = myMember?.role == 'admin';
+                      final bool isMe = member.userId == currentUser?.id;
+
                       return ListTile(
                         leading: CircleAvatar(
                           child: Text(
@@ -124,16 +143,64 @@ class _GroupManagementScreenState extends State<GroupManagementScreen> {
                         ),
                         title: Text(member.username),
                         subtitle: Text(member.email),
-                        trailing: Chip(
-                          label: Text(
-                            member.role == 'admin'
-                                ? 'Trưởng nhóm'
-                                : 'Thành viên',
-                            style: const TextStyle(fontSize: 10),
-                          ),
-                          backgroundColor: member.role == 'admin'
-                              ? Colors.orange.shade100
-                              : Colors.grey.shade100,
+                        trailing: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Chip(
+                              label: Text(
+                                member.role == 'admin'
+                                    ? 'Trưởng nhóm'
+                                    : 'Thành viên',
+                                style: const TextStyle(fontSize: 10),
+                              ),
+                              backgroundColor: member.role == 'admin'
+                                  ? Colors.orange.shade100
+                                  : Colors.grey.shade100,
+                            ),
+                            if (amIAdmin && !isMe) ...[
+                              const SizedBox(width: 8),
+                              IconButton(
+                                icon: const Icon(
+                                  LucideIcons.trash2,
+                                  color: Colors.red,
+                                ),
+                                tooltip: 'Xoá thành viên',
+                                onPressed: () {
+                                  // Confirm dialog
+                                  showDialog(
+                                    context: context,
+                                    builder: (ctx) => AlertDialog(
+                                      title: const Text('Xác nhận'),
+                                      content: Text(
+                                        'Bạn có chắc muốn xoá ${member.username} khỏi nhóm?',
+                                      ),
+                                      actions: [
+                                        TextButton(
+                                          onPressed: () => Navigator.pop(ctx),
+                                          child: const Text('Huỷ'),
+                                        ),
+                                        TextButton(
+                                          onPressed: () {
+                                            Navigator.pop(ctx);
+                                            context.read<GroupBloc>().add(
+                                              RemoveMember(
+                                                detail.id,
+                                                member.userId,
+                                              ),
+                                            );
+                                          },
+                                          child: const Text(
+                                            'Xoá',
+                                            style: TextStyle(color: Colors.red),
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  );
+                                },
+                              ),
+                            ],
+                          ],
                         ),
                       );
                     },

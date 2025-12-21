@@ -8,22 +8,27 @@ import '../../domain/usecases/create_group_usecase.dart';
 import 'group_event.dart';
 import 'group_state.dart';
 
+import '../../domain/usecases/remove_member_usecase.dart';
+
 @lazySingleton
 class GroupBloc extends Bloc<GroupEvent, GroupState> {
   final GetGroupsUseCase getGroupsUseCase;
   final GetGroupDetailUseCase getGroupDetailUseCase;
   final AddMemberUseCase addMemberUseCase;
   final CreateGroupUseCase createGroupUseCase;
+  final RemoveMemberUseCase removeMemberUseCase;
 
   GroupBloc(
     this.getGroupsUseCase,
     this.getGroupDetailUseCase,
     this.addMemberUseCase,
     this.createGroupUseCase,
+    this.removeMemberUseCase,
   ) : super(const GroupState()) {
     on<LoadGroups>(_onLoadGroups);
     on<SelectGroup>(_onSelectGroup);
     on<AddMember>(_onAddMember);
+    on<RemoveMember>(_onRemoveMember);
     on<LoadGroupDetail>(_onLoadGroupDetail);
     on<CreateGroup>(_onCreateGroup);
   }
@@ -90,6 +95,23 @@ class GroupBloc extends Bloc<GroupEvent, GroupState> {
       (failure) => emit(
         state.copyWith(errorMessage: failure.message),
       ), // Show snackbar in UI listener
+      (_) {
+        if (state.selectedGroupId != null) {
+          add(LoadGroupDetail(state.selectedGroupId!));
+        }
+      },
+    );
+  }
+
+  Future<void> _onRemoveMember(
+    RemoveMember event,
+    Emitter<GroupState> emit,
+  ) async {
+    final result = await removeMemberUseCase(
+      RemoveMemberParams(groupId: event.groupId, userId: event.userId),
+    );
+    result.fold(
+      (failure) => emit(state.copyWith(errorMessage: failure.message)),
       (_) {
         if (state.selectedGroupId != null) {
           add(LoadGroupDetail(state.selectedGroupId!));

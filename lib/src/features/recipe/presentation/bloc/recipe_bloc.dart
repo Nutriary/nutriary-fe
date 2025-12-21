@@ -84,7 +84,13 @@ class RecipeBloc extends Bloc<RecipeEvent, RecipeState> {
   ) async {
     emit(state.copyWith(isLoadingAction: true, errorMessage: null));
     final result = await createRecipeUseCase(
-      CreateRecipeParams(event.name, event.foodName, event.content),
+      CreateRecipeParams(
+        event.name,
+        event.foodName,
+        event.content,
+        isPublic: event.isPublic,
+        groupId: event.groupId,
+      ),
     );
     result.fold(
       (failure) => emit(

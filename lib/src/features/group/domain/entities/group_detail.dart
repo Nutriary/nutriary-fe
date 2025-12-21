@@ -15,16 +15,18 @@ class GroupDetail extends Group {
 }
 
 class GroupMember extends Equatable {
+  final int userId;
   final String username;
   final String email;
   final String role;
 
   const GroupMember({
+    required this.userId,
     required this.username,
     required this.email,
     required this.role,
   });
 
   @override
-  List<Object?> get props => [username, email, role];
+  List<Object?> get props => [userId, username, email, role];
 }

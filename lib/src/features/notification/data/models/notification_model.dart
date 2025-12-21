@@ -11,13 +11,16 @@ class NotificationModel extends NotificationEntity {
   });
 
   factory NotificationModel.fromJson(Map<String, dynamic> json) {
+    // Backend returns 'message' field, we split for title/body or use full message
+    final message = json['message'] ?? '';
+
     return NotificationModel(
       id: json['id'],
-      title: json['title'] ?? '',
-      body: json['body'] ?? '',
+      title: 'Thông báo', // Default title since backend only has message
+      body: message,
       isRead: json['isRead'] ?? false,
-      createdAt: json['created_at'] != null
-          ? DateTime.parse(json['created_at'])
+      createdAt: json['createdAt'] != null
+          ? DateTime.parse(json['createdAt'])
           : DateTime.now(),
       data: json['data'],
     );

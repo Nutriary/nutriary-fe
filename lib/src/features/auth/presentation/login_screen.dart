@@ -6,6 +6,18 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:nutriary_fe/src/features/auth/presentation/bloc/auth_bloc.dart';
 import 'package:nutriary_fe/src/features/auth/presentation/bloc/auth_event.dart';
 import 'package:nutriary_fe/src/features/auth/presentation/bloc/auth_state.dart';
+import 'package:nutriary_fe/src/features/user/presentation/bloc/user_bloc.dart';
+import 'package:nutriary_fe/src/features/user/presentation/bloc/user_event.dart';
+import 'package:nutriary_fe/src/features/group/presentation/bloc/group_bloc.dart';
+import 'package:nutriary_fe/src/features/group/presentation/bloc/group_event.dart';
+import 'package:nutriary_fe/src/features/fridge/presentation/bloc/fridge_bloc.dart';
+import 'package:nutriary_fe/src/features/fridge/presentation/bloc/fridge_event.dart';
+import 'package:nutriary_fe/src/features/recipe/presentation/bloc/recipe_bloc.dart';
+import 'package:nutriary_fe/src/features/recipe/presentation/bloc/recipe_event.dart';
+import 'package:nutriary_fe/src/features/meal_plan/presentation/bloc/meal_plan_bloc.dart';
+import 'package:nutriary_fe/src/features/meal_plan/presentation/bloc/meal_plan_event.dart';
+import 'package:nutriary_fe/src/features/notification/presentation/bloc/notification_bloc.dart';
+import 'package:nutriary_fe/src/features/notification/presentation/bloc/notification_event.dart';
 import 'package:nutriary_fe/src/core/di/injection.dart';
 
 class LoginScreen extends StatefulWidget {
@@ -49,8 +61,20 @@ class _LoginScreenState extends State<LoginScreen> {
               SnackBar(content: Text(state.errorMessage ?? 'Unknown error')),
             );
           } else if (state.status == AuthStatus.authenticated) {
-            // Token is already saved by Bloc, but if we wanted to be double sure or handle navigation separately:
+            // Reload ALL data for the new user
             if (context.mounted) {
+              // User & Groups
+              context.read<UserBloc>().add(LoadUserProfile());
+              context.read<GroupBloc>().add(LoadGroups());
+
+              // Fridge & Recipes
+              context.read<FridgeBloc>().add(LoadCategories());
+              context.read<RecipeBloc>().add(LoadAllRecipes());
+
+              // Meal Plan & Notifications
+              context.read<MealPlanBloc>().add(LoadMealPlan(DateTime.now()));
+              context.read<NotificationBloc>().add(LoadNotifications());
+
               ScaffoldMessenger.of(context).showSnackBar(
                 const SnackBar(content: Text('Đăng nhập thành công!')),
               );

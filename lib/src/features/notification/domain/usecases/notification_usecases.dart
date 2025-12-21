@@ -13,3 +13,21 @@ class GetNotificationsUseCase
   Future<Either<Failure, List<NotificationEntity>>> call(NoParams params) =>
       repository.getNotifications();
 }
+
+@lazySingleton
+class MarkAsReadUseCase extends UseCase<void, int> {
+  final NotificationRepository repository;
+  MarkAsReadUseCase(this.repository);
+  @override
+  Future<Either<Failure, void>> call(int params) =>
+      repository.markAsRead(params);
+}
+
+@lazySingleton
+class MarkAllReadUseCase extends UseCase<void, NoParams> {
+  final NotificationRepository repository;
+  MarkAllReadUseCase(this.repository);
+  @override
+  Future<Either<Failure, void>> call(NoParams params) =>
+      repository.markAllRead();
+}

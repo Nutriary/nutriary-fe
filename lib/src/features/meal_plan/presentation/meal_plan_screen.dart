@@ -305,80 +305,261 @@ class _MealPlanScreenState extends State<MealPlanScreen> {
   }
 
   Widget _buildMealCard(MealPlan meal, Color color) {
-    return Dismissible(
-      key: Key(meal.id.toString()),
-      direction: DismissDirection.endToStart,
-      background: Container(
-        decoration: BoxDecoration(
-          color: Colors.redAccent,
-          borderRadius: BorderRadius.circular(16),
-        ),
-        alignment: Alignment.centerRight,
-        padding: const EdgeInsets.only(right: 20),
-        child: const Icon(LucideIcons.trash2, color: Colors.white),
-      ),
-      onDismissed: (_) {
-        context.read<MealPlanBloc>().add(
-          DeleteMealPlan(meal.id, _selectedDate),
-        );
-      },
+    final hasImage = meal.foodImageUrl != null && meal.foodImageUrl!.isNotEmpty;
+
+    return GestureDetector(
+      onLongPress: () => _showMealOptions(meal, color),
       child: Container(
-        height: 80,
+        height: 100,
         decoration: BoxDecoration(
           color: Colors.white,
           borderRadius: BorderRadius.circular(16),
-          border: Border.all(color: Colors.grey.shade100),
           boxShadow: [
             BoxShadow(
-              color: color.withOpacity(0.05),
-              blurRadius: 10,
+              color: color.withOpacity(0.15),
+              blurRadius: 12,
               offset: const Offset(0, 4),
             ),
           ],
         ),
         child: Row(
           children: [
+            // Food Image or Icon
             ClipRRect(
               borderRadius: const BorderRadius.horizontal(
                 left: Radius.circular(16),
               ),
-              child: Container(
-                width: 80,
-                height: 80,
-                color: color.withOpacity(0.1),
-                child: Icon(LucideIcons.utensils, color: color),
+              child: SizedBox(
+                width: 100,
+                height: 100,
+                child: hasImage
+                    ? Image.network(
+                        meal.foodImageUrl!,
+                        fit: BoxFit.cover,
+                        errorBuilder: (_, __, ___) => Container(
+                          color: color.withOpacity(0.1),
+                          child: Icon(
+                            LucideIcons.utensils,
+                            color: color,
+                            size: 32,
+                          ),
+                        ),
+                      )
+                    : Container(
+                        decoration: BoxDecoration(
+                          gradient: LinearGradient(
+                            begin: Alignment.topLeft,
+                            end: Alignment.bottomRight,
+                            colors: [
+                              color.withOpacity(0.2),
+                              color.withOpacity(0.05),
+                            ],
+                          ),
+                        ),
+                        child: Icon(
+                          LucideIcons.chefHat,
+                          color: color,
+                          size: 36,
+                        ),
+                      ),
               ),
             ),
-            const SizedBox(width: 16),
+            // Content
             Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Text(
-                    meal.foodName,
-                    style: const TextStyle(
-                      fontWeight: FontWeight.bold,
-                      fontSize: 16,
+              child: Padding(
+                padding: const EdgeInsets.all(12.0),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    // Food Name - prominent
+                    Text(
+                      meal.foodName.isNotEmpty ? meal.foodName : 'Món ăn',
+                      style: const TextStyle(
+                        fontWeight: FontWeight.bold,
+                        fontSize: 16,
+                        color: Colors.black87,
+                      ),
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
                     ),
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                  const SizedBox(height: 4),
-                  Text(
-                    '1 phần',
-                    style: TextStyle(color: Colors.grey[500], fontSize: 12),
-                  ),
-                ],
+                    const SizedBox(height: 6),
+                    // Meal Type Badge
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 8,
+                        vertical: 4,
+                      ),
+                      decoration: BoxDecoration(
+                        color: color.withOpacity(0.1),
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: Text(
+                        meal.mealType,
+                        style: TextStyle(
+                          color: color,
+                          fontSize: 11,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
               ),
             ),
-            IconButton(
-              icon: Icon(Icons.more_vert, color: Colors.grey[400]),
-              onPressed: () {},
+            // More Options Button
+            PopupMenuButton<String>(
+              icon: Icon(LucideIcons.moreVertical, color: Colors.grey[400]),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(12),
+              ),
+              onSelected: (value) {
+                if (value == 'edit') {
+                  _showEditMealDialog(meal);
+                } else if (value == 'delete') {
+                  _deleteMeal(meal);
+                }
+              },
+              itemBuilder: (context) => [
+                PopupMenuItem(
+                  value: 'edit',
+                  child: Row(
+                    children: [
+                      Icon(LucideIcons.edit3, size: 18, color: Colors.blue),
+                      const SizedBox(width: 12),
+                      const Text('Chỉnh sửa'),
+                    ],
+                  ),
+                ),
+                PopupMenuItem(
+                  value: 'delete',
+                  child: Row(
+                    children: [
+                      Icon(LucideIcons.trash2, size: 18, color: Colors.red),
+                      const SizedBox(width: 12),
+                      const Text('Xoá', style: TextStyle(color: Colors.red)),
+                    ],
+                  ),
+                ),
+              ],
             ),
           ],
         ),
-      ).animate().fadeIn().slideX(),
+      ).animate().fadeIn(duration: 300.ms).slideX(begin: 0.1, end: 0),
+    );
+  }
+
+  void _showMealOptions(MealPlan meal, Color color) {
+    showModalBottomSheet(
+      context: context,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (ctx) => Padding(
+        padding: const EdgeInsets.all(20),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Container(
+              width: 40,
+              height: 4,
+              decoration: BoxDecoration(
+                color: Colors.grey[300],
+                borderRadius: BorderRadius.circular(2),
+              ),
+            ),
+            const SizedBox(height: 20),
+            Text(
+              meal.foodName,
+              style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+            ),
+            const SizedBox(height: 8),
+            Text(meal.mealType, style: TextStyle(color: Colors.grey[600])),
+            const SizedBox(height: 24),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+              children: [
+                _buildActionButton(
+                  icon: LucideIcons.edit3,
+                  label: 'Sửa',
+                  color: Colors.blue,
+                  onTap: () {
+                    Navigator.pop(ctx);
+                    _showEditMealDialog(meal);
+                  },
+                ),
+                _buildActionButton(
+                  icon: LucideIcons.trash2,
+                  label: 'Xoá',
+                  color: Colors.red,
+                  onTap: () {
+                    Navigator.pop(ctx);
+                    _deleteMeal(meal);
+                  },
+                ),
+              ],
+            ),
+            const SizedBox(height: 16),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildActionButton({
+    required IconData icon,
+    required String label,
+    required Color color,
+    required VoidCallback onTap,
+  }) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Column(
+        children: [
+          Container(
+            padding: const EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              color: color.withOpacity(0.1),
+              shape: BoxShape.circle,
+            ),
+            child: Icon(icon, color: color, size: 24),
+          ),
+          const SizedBox(height: 8),
+          Text(
+            label,
+            style: TextStyle(color: color, fontWeight: FontWeight.w500),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _showEditMealDialog(MealPlan meal) {
+    showDialog(
+      context: context,
+      builder: (_) => _EditMealDialog(meal: meal, date: _selectedDate),
+    );
+  }
+
+  void _deleteMeal(MealPlan meal) {
+    context.read<MealPlanBloc>().add(DeleteMealPlan(meal.id, _selectedDate));
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text('Đã xoá "${meal.foodName}"'),
+        action: SnackBarAction(
+          label: 'Hoàn tác',
+          onPressed: () {
+            // Re-add the meal
+            context.read<MealPlanBloc>().add(
+              AddMealPlan(
+                date: _selectedDate,
+                mealType: meal.mealType,
+                foodName: meal.foodName,
+              ),
+            );
+          },
+        ),
+      ),
     );
   }
 }
@@ -474,6 +655,134 @@ class _AddMealDialogState extends State<_AddMealDialog> {
   }
 }
 
+// Edit Meal Dialog
+class _EditMealDialog extends StatefulWidget {
+  final MealPlan meal;
+  final DateTime date;
+  const _EditMealDialog({required this.meal, required this.date});
+
+  @override
+  State<_EditMealDialog> createState() => _EditMealDialogState();
+}
+
+class _EditMealDialogState extends State<_EditMealDialog> {
+  late String _selectedType;
+  final List<String> _types = ['Bữa Sáng', 'Bữa Trưa', 'Bữa Tối', 'Bữa Phụ'];
+
+  @override
+  void initState() {
+    super.initState();
+    _selectedType = widget.meal.mealType;
+  }
+
+  void _save() {
+    // Since we don't have UpdateMealPlan event, we'll delete and re-add
+    context.read<MealPlanBloc>().add(
+      DeleteMealPlan(widget.meal.id, widget.date),
+    );
+    // Add with new type after a short delay
+    Future.delayed(const Duration(milliseconds: 300), () {
+      context.read<MealPlanBloc>().add(
+        AddMealPlan(
+          date: widget.date,
+          mealType: _selectedType,
+          foodName: widget.meal.foodName,
+        ),
+      );
+    });
+    Navigator.pop(context);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AlertDialog(
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+      title: Row(
+        children: [
+          Icon(LucideIcons.edit3, color: Colors.blue, size: 24),
+          const SizedBox(width: 12),
+          const Text('Chỉnh sửa món'),
+        ],
+      ),
+      content: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // Food Name Display
+          Container(
+            padding: const EdgeInsets.all(12),
+            decoration: BoxDecoration(
+              color: Colors.grey[100],
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: Row(
+              children: [
+                Icon(LucideIcons.chefHat, color: Colors.orange, size: 20),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Text(
+                    widget.meal.foodName,
+                    style: const TextStyle(
+                      fontWeight: FontWeight.bold,
+                      fontSize: 16,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 20),
+          const Text(
+            'Chọn bữa ăn:',
+            style: TextStyle(fontWeight: FontWeight.w500),
+          ),
+          const SizedBox(height: 12),
+          // Meal Type Selection
+          Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            children: _types.map((type) {
+              final isSelected = _selectedType == type;
+              return GestureDetector(
+                onTap: () => setState(() => _selectedType = type),
+                child: Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 16,
+                    vertical: 10,
+                  ),
+                  decoration: BoxDecoration(
+                    color: isSelected
+                        ? Theme.of(context).primaryColor
+                        : Colors.grey[200],
+                    borderRadius: BorderRadius.circular(20),
+                  ),
+                  child: Text(
+                    type,
+                    style: TextStyle(
+                      color: isSelected ? Colors.white : Colors.black87,
+                      fontWeight: isSelected
+                          ? FontWeight.bold
+                          : FontWeight.normal,
+                    ),
+                  ),
+                ),
+              );
+            }).toList(),
+          ),
+        ],
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.pop(context),
+          child: const Text('Hủy'),
+        ),
+        FilledButton(onPressed: _save, child: const Text('Lưu')),
+      ],
+    );
+  }
+}
+
+// Improved Suggestions Sheet
 class _SuggestionsSheet extends StatelessWidget {
   final DateTime date;
   final ScrollController scrollController;
@@ -481,95 +790,226 @@ class _SuggestionsSheet extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return BlocConsumer<MealPlanBloc, MealPlanState>(
-      listener: (context, state) {
-        if (state.errorMessage != null && !state.isLoadingAction) {
-          // Might show toast?
-        }
-      },
+    return BlocBuilder<MealPlanBloc, MealPlanState>(
       builder: (context, state) {
         final suggestions = state.suggestions;
-        return Column(
-          children: [
-            Padding(
-              padding: const EdgeInsets.all(16),
-              child: Text(
-                'Gợi ý từ Tủ lạnh',
-                style: Theme.of(
-                  context,
-                ).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.bold),
+
+        return Container(
+          decoration: const BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+          ),
+          child: Column(
+            children: [
+              // Handle bar
+              Container(
+                margin: const EdgeInsets.only(top: 12),
+                width: 40,
+                height: 4,
+                decoration: BoxDecoration(
+                  color: Colors.grey[300],
+                  borderRadius: BorderRadius.circular(2),
+                ),
               ),
-            ),
-            Expanded(
-              child: suggestions.isEmpty
-                  ? const Center(child: Text('Không có gợi ý nào.'))
-                  : ListView.builder(
-                      controller: scrollController,
-                      itemCount: suggestions.length,
-                      itemBuilder: (context, index) {
-                        // Suggestion in legacy was List<dynamic> (maps), but UseCase returns List<String>
-                        // because I defined GetMealSuggestionsUseCase to return List<String>.
-                        // However, legacy Repo lines 114-115: return (data as List?) ?? []
-                        // And UI line 478: recipe['food']?['name'].
-                        // It seems suggestions endpoint returns detailed objects (probably recipes or foods).
-                        // My UseCase definition was List<String>. This is a mismatch.
-                        // I should update UseCase and Entity/Model to handle Suggestion Object or fallback to String.
-                        // For now, let's treat it as String if I can't easily change it, or fix it right now.
-                        // The legacy code used `recipes[index]` and accessed `['food']['name']`.
-                        // So it IS an object.
-                        // I likely made a mistake in `GetMealSuggestionsUseCase` thinking it returns strings.
-                        // Use `List<dynamic>` or `List<Suggestion>`? I'll use `List<dynamic>` in State for now to avoid breaking too much, or better, make a `Suggestion` entity.
-                        // But `MealPlanBloc` uses `List<String> suggestions`.
-                        // I should update `MealPlanBloc` and `GetMealSuggestionsUseCase`.
-                        // But effectively, if I cast it to string in Repo, UI breaks.
-                        // Let's assume for this "Quick Refactor" I'll stick to String or simple object.
-                        // Wait, I coded `getSuggestions` in RepoImpl to return `List<String>`.
-                        // Line 122 in `meal_plan_repository_impl.dart`: `return (data as List?)?.map((e) => e.toString()).toList() ?? [];`
-                        // This effectively destroys the object structure.
-                        // I need to fix `MealPlanRepositoryImpl` and `GetMealSuggestionsUseCase`.
-                        final suggestion = suggestions[index];
-                        return ListTile(
-                          leading: const CircleAvatar(
-                            child: Icon(LucideIcons.chefHat),
-                          ),
-                          title: Text(
-                            suggestion,
-                          ), // Displaying stringified object or name?
-                          subtitle: const Text('Có sẵn trong tủ lạnh'),
-                          trailing: IconButton(
-                            icon: const Icon(
-                              Icons.add_circle,
-                              color: Colors.green,
-                            ),
-                            onPressed: () {
-                              _showAddDialog(context, suggestion);
-                            },
-                          ),
-                        );
-                      },
+              // Header
+              Padding(
+                padding: const EdgeInsets.all(20),
+                child: Row(
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.all(10),
+                      decoration: BoxDecoration(
+                        color: Colors.orange.withOpacity(0.1),
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: const Icon(
+                        LucideIcons.lightbulb,
+                        color: Colors.orange,
+                        size: 24,
+                      ),
                     ),
-            ),
-          ],
+                    const SizedBox(width: 12),
+                    Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const Text(
+                          'Gợi ý từ Tủ lạnh',
+                          style: TextStyle(
+                            fontSize: 18,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                        Text(
+                          '${suggestions.length} món có thể nấu',
+                          style: TextStyle(
+                            color: Colors.grey[600],
+                            fontSize: 13,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+              const Divider(height: 1),
+              // List
+              Expanded(
+                child: suggestions.isEmpty
+                    ? Center(
+                        child: Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Icon(
+                              LucideIcons.refrigerator,
+                              size: 64,
+                              color: Colors.grey[300],
+                            ),
+                            const SizedBox(height: 16),
+                            Text(
+                              'Tủ lạnh trống hoặc chưa có công thức phù hợp',
+                              style: TextStyle(color: Colors.grey[500]),
+                              textAlign: TextAlign.center,
+                            ),
+                          ],
+                        ),
+                      )
+                    : ListView.builder(
+                        controller: scrollController,
+                        padding: const EdgeInsets.all(16),
+                        itemCount: suggestions.length,
+                        itemBuilder: (context, index) {
+                          final suggestion = suggestions[index];
+                          return _buildSuggestionCard(
+                            context,
+                            suggestion,
+                            index,
+                          );
+                        },
+                      ),
+              ),
+            ],
+          ),
         );
       },
     );
   }
 
-  void _showAddDialog(BuildContext context, String foodName) {
-    final List<String> _types = ['Bữa Sáng', 'Bữa Trưa', 'Bữa Tối', 'Bữa Phụ'];
-    showDialog(
-      context: context,
-      builder: (_) => AlertDialog(
-        title: Text('Thêm $foodName vào thực đơn'),
-        content: Column(
+  Widget _buildSuggestionCard(
+    BuildContext context,
+    String foodName,
+    int index,
+  ) {
+    final colors = [
+      Colors.orange,
+      Colors.blue,
+      Colors.green,
+      Colors.purple,
+      Colors.teal,
+    ];
+    final color = colors[index % colors.length];
+
+    return Container(
+      margin: const EdgeInsets.only(bottom: 12),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: Colors.grey.shade200),
+        boxShadow: [
+          BoxShadow(
+            color: color.withOpacity(0.1),
+            blurRadius: 8,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: ListTile(
+        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+        leading: Container(
+          width: 50,
+          height: 50,
+          decoration: BoxDecoration(
+            gradient: LinearGradient(
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+              colors: [color.withOpacity(0.2), color.withOpacity(0.05)],
+            ),
+            borderRadius: BorderRadius.circular(12),
+          ),
+          child: Icon(LucideIcons.chefHat, color: color),
+        ),
+        title: Text(
+          foodName,
+          style: const TextStyle(fontWeight: FontWeight.bold),
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+        ),
+        subtitle: Row(
           mainAxisSize: MainAxisSize.min,
-          children: _types
-              .map(
-                (type) => ListTile(
-                  title: Text(type),
+          children: [
+            Icon(LucideIcons.check, size: 14, color: Colors.green),
+            const SizedBox(width: 4),
+            Flexible(
+              child: Text(
+                'Có sẵn nguyên liệu',
+                style: TextStyle(color: Colors.grey[600], fontSize: 12),
+                overflow: TextOverflow.ellipsis,
+              ),
+            ),
+          ],
+        ),
+        trailing: IconButton.filled(
+          onPressed: () => _showAddDialog(context, foodName),
+          icon: const Icon(LucideIcons.plus, size: 18),
+          style: IconButton.styleFrom(
+            backgroundColor: color,
+            foregroundColor: Colors.white,
+          ),
+        ),
+      ),
+    ).animate().fadeIn(delay: (index * 50).ms).slideX(begin: 0.1, end: 0);
+  }
+
+  void _showAddDialog(BuildContext context, String foodName) {
+    final List<String> types = ['Bữa Sáng', 'Bữa Trưa', 'Bữa Tối', 'Bữa Phụ'];
+    final colors = [Colors.orange, Colors.blue, Colors.indigo, Colors.green];
+
+    showModalBottomSheet(
+      context: context,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (ctx) => Padding(
+        padding: const EdgeInsets.all(20),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Container(
+              width: 40,
+              height: 4,
+              decoration: BoxDecoration(
+                color: Colors.grey[300],
+                borderRadius: BorderRadius.circular(2),
+              ),
+            ),
+            const SizedBox(height: 20),
+            Text(
+              'Thêm "$foodName" vào',
+              style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+            ),
+            const SizedBox(height: 20),
+            GridView.count(
+              shrinkWrap: true,
+              crossAxisCount: 2,
+              mainAxisSpacing: 12,
+              crossAxisSpacing: 12,
+              childAspectRatio: 2.5,
+              children: List.generate(types.length, (index) {
+                final type = types[index];
+                final color = colors[index];
+                return GestureDetector(
                   onTap: () {
-                    Navigator.pop(context); // Close dialog
-                    // Add to meal plan
+                    Navigator.pop(ctx);
+                    Navigator.pop(context); // Close suggestions sheet
                     context.read<MealPlanBloc>().add(
                       AddMealPlan(
                         date: date,
@@ -577,10 +1017,34 @@ class _SuggestionsSheet extends StatelessWidget {
                         foodName: foodName,
                       ),
                     );
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(
+                        content: Text('Đã thêm "$foodName" vào $type'),
+                        backgroundColor: color,
+                      ),
+                    );
                   },
-                ),
-              )
-              .toList(),
+                  child: Container(
+                    decoration: BoxDecoration(
+                      color: color.withOpacity(0.1),
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(color: color.withOpacity(0.3)),
+                    ),
+                    child: Center(
+                      child: Text(
+                        type,
+                        style: TextStyle(
+                          color: color,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ),
+                  ),
+                );
+              }),
+            ),
+            const SizedBox(height: 16),
+          ],
         ),
       ),
     );

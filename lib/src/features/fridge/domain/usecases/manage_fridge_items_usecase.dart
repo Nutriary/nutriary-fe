@@ -97,3 +97,31 @@ class RemoveFridgeItemParams extends Equatable {
   @override
   List<Object?> get props => [foodName, groupId];
 }
+
+@lazySingleton
+class ConsumeFridgeItemUseCase extends UseCase<void, ConsumeFridgeItemParams> {
+  final FridgeRepository repository;
+  ConsumeFridgeItemUseCase(this.repository);
+
+  @override
+  Future<Either<Failure, void>> call(ConsumeFridgeItemParams params) {
+    return repository.consumeFridgeItem(
+      foodName: params.foodName,
+      quantity: params.quantity,
+      groupId: params.groupId,
+    );
+  }
+}
+
+class ConsumeFridgeItemParams extends Equatable {
+  final String foodName;
+  final double quantity;
+  final int? groupId;
+  const ConsumeFridgeItemParams({
+    required this.foodName,
+    required this.quantity,
+    this.groupId,
+  });
+  @override
+  List<Object?> get props => [foodName, quantity, groupId];
+}

@@ -9,6 +9,7 @@ import 'package:nutriary_fe/src/features/group/presentation/bloc/group_state.dar
 import 'package:nutriary_fe/src/features/group/presentation/bloc/group_event.dart';
 import 'package:nutriary_fe/src/features/user/presentation/bloc/user_bloc.dart';
 import 'package:nutriary_fe/src/features/user/presentation/bloc/user_state.dart';
+import 'package:nutriary_fe/src/features/user/presentation/bloc/user_event.dart';
 
 class UserDrawer extends StatelessWidget {
   const UserDrawer({super.key});
@@ -91,49 +92,117 @@ class UserDrawer extends StatelessWidget {
                         }
 
                         final groups = state.groups;
-                        if (groups.isEmpty) return const SizedBox.shrink();
 
-                        return Container(
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 12,
-                            vertical: 4,
-                          ),
-                          decoration: BoxDecoration(
-                            color: Colors.white10,
-                            borderRadius: BorderRadius.circular(8),
-                          ),
-                          child: DropdownButtonHideUnderline(
-                            child: DropdownButton<int>(
-                              value: state.selectedGroupId, // Use ID directly
-                              dropdownColor: Colors.grey[900],
-                              isExpanded: true,
-                              icon: const Icon(
-                                LucideIcons.chevronDown,
-                                color: Colors.white70,
-                                size: 16,
-                              ),
-                              style: const TextStyle(
-                                color: Colors.white,
-                                fontSize: 14,
-                              ),
-                              items: groups.map<DropdownMenuItem<int>>((g) {
-                                return DropdownMenuItem<int>(
-                                  value: g.id,
-                                  child: Text(
-                                    g.name,
-                                    style: const TextStyle(color: Colors.white),
-                                  ),
-                                );
-                              }).toList(),
-                              onChanged: (newId) {
-                                if (newId != null) {
-                                  context.read<GroupBloc>().add(
-                                    SelectGroup(newId),
-                                  );
-                                }
-                              },
+                        // Empty state - no groups
+                        if (groups.isEmpty) {
+                          return Container(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 12,
+                              vertical: 12,
                             ),
-                          ),
+                            decoration: BoxDecoration(
+                              color: Colors.white10,
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                            child: Column(
+                              children: [
+                                const Text(
+                                  'Bạn chưa có nhóm nào',
+                                  style: TextStyle(color: Colors.white70),
+                                ),
+                                const SizedBox(height: 8),
+                                OutlinedButton.icon(
+                                  onPressed: () =>
+                                      _showCreateGroupDialog(context),
+                                  icon: const Icon(LucideIcons.plus, size: 16),
+                                  label: const Text('Tạo nhóm đầu tiên'),
+                                  style: OutlinedButton.styleFrom(
+                                    foregroundColor: Colors.white,
+                                    side: const BorderSide(
+                                      color: Colors.white54,
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          );
+                        }
+
+                        return Column(
+                          children: [
+                            // Dropdown to select group
+                            Container(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 12,
+                                vertical: 4,
+                              ),
+                              decoration: BoxDecoration(
+                                color: Colors.white10,
+                                borderRadius: BorderRadius.circular(8),
+                              ),
+                              child: DropdownButtonHideUnderline(
+                                child: DropdownButton<int>(
+                                  value:
+                                      groups.any(
+                                        (g) => g.id == state.selectedGroupId,
+                                      )
+                                      ? state.selectedGroupId
+                                      : null,
+                                  hint: const Text(
+                                    'Chọn nhóm',
+                                    style: TextStyle(color: Colors.white70),
+                                  ),
+                                  dropdownColor: Colors.grey[900],
+                                  isExpanded: true,
+                                  icon: const Icon(
+                                    LucideIcons.chevronDown,
+                                    color: Colors.white70,
+                                    size: 16,
+                                  ),
+                                  style: const TextStyle(
+                                    color: Colors.white,
+                                    fontSize: 14,
+                                  ),
+                                  items: groups.map<DropdownMenuItem<int>>((g) {
+                                    return DropdownMenuItem<int>(
+                                      value: g.id,
+                                      child: Text(
+                                        g.name,
+                                        style: const TextStyle(
+                                          color: Colors.white,
+                                        ),
+                                      ),
+                                    );
+                                  }).toList(),
+                                  onChanged: (newId) {
+                                    if (newId != null) {
+                                      context.read<GroupBloc>().add(
+                                        SelectGroup(newId),
+                                      );
+                                    }
+                                  },
+                                ),
+                              ),
+                            ),
+                            const SizedBox(height: 8),
+                            // Create new group button
+                            SizedBox(
+                              width: double.infinity,
+                              child: OutlinedButton.icon(
+                                onPressed: () =>
+                                    _showCreateGroupDialog(context),
+                                icon: const Icon(LucideIcons.plus, size: 16),
+                                label: const Text('Tạo nhóm mới'),
+                                style: OutlinedButton.styleFrom(
+                                  foregroundColor: Colors.white70,
+                                  side: const BorderSide(color: Colors.white24),
+                                  padding: const EdgeInsets.symmetric(
+                                    vertical: 8,
+                                  ),
+                                ),
+                              ),
+                            ),
+                          ],
                         );
                       },
                     ),
@@ -178,14 +247,16 @@ class UserDrawer extends StatelessWidget {
                           context.push('/statistics');
                         },
                       ),
-                      ListTile(
-                        leading: const Icon(LucideIcons.shield),
-                        title: const Text('Quản trị'),
-                        onTap: () {
-                          Navigator.pop(context);
-                          context.push('/admin');
-                        },
-                      ),
+                      // Admin menu - only visible for admin users
+                      if (state.user?.isAdmin == true)
+                        ListTile(
+                          leading: const Icon(LucideIcons.shield),
+                          title: const Text('Quản trị'),
+                          onTap: () {
+                            Navigator.pop(context);
+                            context.push('/admin');
+                          },
+                        ),
                       const Divider(),
                       ListTile(
                         leading: const Icon(
@@ -197,6 +268,8 @@ class UserDrawer extends StatelessWidget {
                           style: TextStyle(color: Colors.red),
                         ),
                         onTap: () async {
+                          // Clear user state before logout
+                          context.read<UserBloc>().add(ClearUserState());
                           await const FlutterSecureStorage().deleteAll();
                           if (context.mounted) {
                             context.go('/login');
@@ -213,4 +286,46 @@ class UserDrawer extends StatelessWidget {
       ),
     );
   }
+}
+
+void _showCreateGroupDialog(BuildContext context) {
+  final controller = TextEditingController();
+
+  showDialog(
+    context: context,
+    builder: (dialogContext) => AlertDialog(
+      title: const Text('Tạo nhóm mới'),
+      content: TextField(
+        controller: controller,
+        autofocus: true,
+        decoration: const InputDecoration(
+          labelText: 'Tên nhóm',
+          hintText: 'Ví dụ: Gia đình, Bạn bè...',
+          border: OutlineInputBorder(),
+        ),
+        onSubmitted: (value) {
+          if (value.trim().isNotEmpty) {
+            context.read<GroupBloc>().add(CreateGroup(value.trim()));
+            Navigator.of(dialogContext).pop();
+          }
+        },
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.of(dialogContext).pop(),
+          child: const Text('Hủy'),
+        ),
+        FilledButton(
+          onPressed: () {
+            final name = controller.text.trim();
+            if (name.isNotEmpty) {
+              context.read<GroupBloc>().add(CreateGroup(name));
+              Navigator.of(dialogContext).pop();
+            }
+          },
+          child: const Text('Tạo'),
+        ),
+      ],
+    ),
+  );
 }

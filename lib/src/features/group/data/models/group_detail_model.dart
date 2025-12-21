@@ -22,6 +22,7 @@ class GroupDetailModel extends GroupDetail {
 
 class GroupMemberModel extends GroupMember {
   const GroupMemberModel({
+    required super.userId,
     required super.username,
     required super.email,
     required super.role,
@@ -30,9 +31,10 @@ class GroupMemberModel extends GroupMember {
   factory GroupMemberModel.fromJson(Map<String, dynamic> json) {
     final user = json['user'] ?? {};
     return GroupMemberModel(
+      userId: user['id'] ?? 0,
       username: user['username'] ?? 'Unknown',
       email: user['email'] ?? '',
-      role: json['role'] ?? 'MEMBER',
+      role: json['role'] ?? 'member',
     );
   }
 }

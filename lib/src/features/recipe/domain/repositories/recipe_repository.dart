@@ -7,8 +7,10 @@ abstract class RecipeRepository {
   Future<Either<Failure, void>> createRecipe(
     String name,
     String foodName,
-    String content,
-  );
+    String content, {
+    bool isPublic = true,
+    int? groupId,
+  });
   Future<Either<Failure, void>> updateRecipe(
     int id, {
     String? name,

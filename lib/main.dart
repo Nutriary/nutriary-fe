@@ -17,10 +17,14 @@ import 'package:nutriary_fe/src/features/notification/presentation/bloc/notifica
 import 'package:nutriary_fe/src/features/notification/presentation/bloc/notification_event.dart';
 import 'package:nutriary_fe/src/features/user/presentation/bloc/user_bloc.dart';
 import 'package:nutriary_fe/src/features/user/presentation/bloc/user_event.dart';
+import 'package:nutriary_fe/src/features/settings/presentation/bloc/theme_bloc.dart';
+import 'package:nutriary_fe/src/features/settings/presentation/bloc/theme_event.dart';
 
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 
 import 'package:firebase_core/firebase_core.dart';
+
+import 'package:nutriary_fe/src/core/services/push_notification_service.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -28,11 +32,11 @@ void main() async {
   configureDependencies();
 
   try {
-    // If you have generated firebase_options.dart, import and use it:
-    // await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
     await Firebase.initializeApp();
+    // Initialize push notifications
+    await getIt<PushNotificationService>().initialize();
   } catch (e) {
-    print("Firebase init failed (likely missing config): $e");
+    print("Firebase/PushNotification init failed: $e");
   }
 
   runApp(
@@ -50,6 +54,7 @@ void main() async {
         BlocProvider(
           create: (_) => getIt<NotificationBloc>()..add(LoadNotifications()),
         ),
+        BlocProvider(create: (_) => getIt<ThemeBloc>()..add(LoadTheme())),
         BlocProvider(create: (_) => getIt<UserBloc>()..add(LoadUserProfile())),
       ],
       child: const MyApp(),

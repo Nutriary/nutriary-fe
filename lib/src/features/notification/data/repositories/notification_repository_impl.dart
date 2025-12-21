@@ -8,6 +8,8 @@ import '../models/notification_model.dart';
 
 abstract class NotificationRemoteDataSource {
   Future<List<NotificationModel>> getNotifications();
+  Future<void> markAsRead(int id);
+  Future<void> markAllRead();
 }
 
 @LazySingleton(as: NotificationRemoteDataSource)
@@ -18,8 +20,18 @@ class NotificationRemoteDataSourceImpl implements NotificationRemoteDataSource {
   @override
   Future<List<NotificationModel>> getNotifications() async {
     final response = await _dio.get('/notification');
-    final data = (response.data as List?) ?? [];
+    final data = (response.data['data'] as List?) ?? [];
     return data.map((e) => NotificationModel.fromJson(e)).toList();
+  }
+
+  @override
+  Future<void> markAsRead(int id) async {
+    await _dio.put('/notification/$id/read');
+  }
+
+  @override
+  Future<void> markAllRead() async {
+    await _dio.put('/notification/read-all');
   }
 }
 
@@ -38,6 +50,40 @@ class NotificationRepositoryImpl implements NotificationRepository {
         return Left(
           ServerFailure(
             e.response?.data['message'] ?? 'Failed to load notifications',
+          ),
+        );
+      }
+      return Left(ServerFailure(e.toString()));
+    }
+  }
+
+  @override
+  Future<Either<Failure, void>> markAsRead(int id) async {
+    try {
+      await _dataSource.markAsRead(id);
+      return const Right(null);
+    } catch (e) {
+      if (e is DioException) {
+        return Left(
+          ServerFailure(
+            e.response?.data['message'] ?? 'Failed to mark as read',
+          ),
+        );
+      }
+      return Left(ServerFailure(e.toString()));
+    }
+  }
+
+  @override
+  Future<Either<Failure, void>> markAllRead() async {
+    try {
+      await _dataSource.markAllRead();
+      return const Right(null);
+    } catch (e) {
+      if (e is DioException) {
+        return Left(
+          ServerFailure(
+            e.response?.data['message'] ?? 'Failed to mark all as read',
           ),
         );
       }

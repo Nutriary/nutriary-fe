@@ -18,4 +18,9 @@ abstract class FridgeRepository {
     int? groupId,
   });
   Future<Either<Failure, void>> removeFridgeItem(String foodName, int? groupId);
+  Future<Either<Failure, void>> consumeFridgeItem({
+    required String foodName,
+    required double quantity,
+    int? groupId,
+  });
 }

@@ -7,6 +7,7 @@ import 'package:nutriary_fe/src/features/recipe/presentation/bloc/recipe_bloc.da
 import 'package:nutriary_fe/src/features/recipe/presentation/bloc/recipe_event.dart';
 import 'package:nutriary_fe/src/features/recipe/presentation/bloc/recipe_state.dart';
 import 'package:nutriary_fe/src/features/recipe/domain/entities/recipe.dart';
+import 'package:nutriary_fe/src/features/group/presentation/bloc/group_bloc.dart';
 
 class RecipeListScreen extends StatefulWidget {
   const RecipeListScreen({super.key});
@@ -337,6 +338,9 @@ class _AddRecipeDialogState extends State<_AddRecipeDialog> {
   final _foodNameController = TextEditingController();
   final _contentController = TextEditingController();
 
+  bool _isPublic = true;
+  int? _selectedGroupId;
+
   @override
   void initState() {
     super.initState();
@@ -344,12 +348,21 @@ class _AddRecipeDialogState extends State<_AddRecipeDialog> {
       _nameController.text = widget.recipe!.name;
       _foodNameController.text = widget.recipe!.foodName ?? '';
       _contentController.text = widget.recipe!.htmlContent ?? '';
+      // Existing recipe editing - currently API doesn't fully support editing visibility easily in UI without more data
+      // For now we keep edit simple or assume public.
+      _isPublic = widget.recipe!.isPublic ?? true;
+      _selectedGroupId = widget.recipe!.groupId;
     }
   }
 
   @override
   Widget build(BuildContext context) {
     final isEdit = widget.recipe != null;
+    final groups = context
+        .read<GroupBloc>()
+        .state
+        .groups; // Assuming joinedGroups or groups
+
     return BlocConsumer<RecipeBloc, RecipeState>(
       listenWhen: (prev, curr) =>
           (prev.isLoadingAction && !curr.isLoadingAction),
@@ -367,6 +380,7 @@ class _AddRecipeDialogState extends State<_AddRecipeDialog> {
           title: Text(isEdit ? 'Sửa công thức' : 'Thêm công thức'),
           content: SingleChildScrollView(
             child: Column(
+              mainAxisSize: MainAxisSize.min,
               children: [
                 TextField(
                   controller: _foodNameController,
@@ -389,6 +403,34 @@ class _AddRecipeDialogState extends State<_AddRecipeDialog> {
                   maxLines: 8,
                   keyboardType: TextInputType.multiline,
                 ),
+                if (!isEdit) ...[
+                  const SizedBox(height: 16),
+                  SwitchListTile(
+                    title: const Text('Công khai (Mọi người đều thấy)'),
+                    value: _isPublic,
+                    onChanged: (val) {
+                      setState(() {
+                        _isPublic = val;
+                        if (_isPublic) _selectedGroupId = null;
+                      });
+                    },
+                    contentPadding: EdgeInsets.zero,
+                  ),
+                  if (!_isPublic)
+                    DropdownButtonFormField<int>(
+                      decoration: const InputDecoration(labelText: 'Chọn nhóm'),
+                      value: _selectedGroupId,
+                      items: groups.map((g) {
+                        return DropdownMenuItem(
+                          value: g.id,
+                          child: Text(g.name),
+                        );
+                      }).toList(),
+                      onChanged: (val) =>
+                          setState(() => _selectedGroupId = val),
+                      hint: const Text('Chọn nhóm để chia sẻ'),
+                    ),
+                ],
               ],
             ),
           ),
@@ -425,11 +467,19 @@ class _AddRecipeDialogState extends State<_AddRecipeDialog> {
                           ),
                         );
                       } else {
+                        if (!_isPublic && _selectedGroupId == null) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(content: Text('Vui lòng chọn nhóm')),
+                          );
+                          return;
+                        }
                         context.read<RecipeBloc>().add(
                           CreateRecipe(
                             name: _nameController.text,
                             foodName: _foodNameController.text,
                             content: formattedHtml,
+                            isPublic: _isPublic,
+                            groupId: _selectedGroupId,
                           ),
                         );
                       }

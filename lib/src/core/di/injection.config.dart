@@ -12,7 +12,21 @@
 import 'package:dio/dio.dart' as _i361;
 import 'package:get_it/get_it.dart' as _i174;
 import 'package:injectable/injectable.dart' as _i526;
+import 'package:shared_preferences/shared_preferences.dart' as _i460;
 
+import '../../features/admin/data/datasources/admin_remote_data_source.dart'
+    as _i517;
+import '../../features/admin/data/repositories/admin_repository_impl.dart'
+    as _i335;
+import '../../features/admin/domain/repositories/admin_repository.dart'
+    as _i583;
+import '../../features/admin/domain/usecases/get_admin_users_usecase.dart'
+    as _i695;
+import '../../features/admin/domain/usecases/get_system_stats_usecase.dart'
+    as _i307;
+import '../../features/admin/domain/usecases/update_user_role_usecase.dart'
+    as _i179;
+import '../../features/admin/presentation/bloc/admin_bloc.dart' as _i55;
 import '../../features/auth/data/datasources/auth_remote_data_source.dart'
     as _i107;
 import '../../features/auth/data/repositories/auth_repository_impl.dart'
@@ -50,6 +64,8 @@ import '../../features/group/domain/usecases/create_group_usecase.dart'
 import '../../features/group/domain/usecases/get_group_detail_usecase.dart'
     as _i742;
 import '../../features/group/domain/usecases/get_groups_usecase.dart' as _i316;
+import '../../features/group/domain/usecases/remove_member_usecase.dart'
+    as _i909;
 import '../../features/group/presentation/bloc/group_bloc.dart' as _i845;
 import '../../features/meal_plan/data/repositories/meal_plan_repository_impl.dart'
     as _i314;
@@ -74,6 +90,7 @@ import '../../features/recipe/domain/repositories/recipe_repository.dart'
     as _i76;
 import '../../features/recipe/domain/usecases/recipe_usecases.dart' as _i347;
 import '../../features/recipe/presentation/bloc/recipe_bloc.dart' as _i662;
+import '../../features/settings/presentation/bloc/theme_bloc.dart' as _i930;
 import '../../features/shopping_list/data/repositories/shopping_repository_impl.dart'
     as _i249;
 import '../../features/shopping_list/domain/repositories/shopping_repository.dart'
@@ -96,20 +113,31 @@ import '../../features/user/domain/repositories/user_repository.dart' as _i237;
 import '../../features/user/domain/usecases/user_usecases.dart' as _i804;
 import '../../features/user/presentation/bloc/user_bloc.dart' as _i747;
 import '../../routing/app_router.dart' as _i605;
+import '../services/push_notification_service.dart' as _i63;
 import 'register_module.dart' as _i291;
 
 extension GetItInjectableX on _i174.GetIt {
   // initializes the registration of main-scope dependencies inside of GetIt
-  _i174.GetIt init({
+  Future<_i174.GetIt> init({
     String? environment,
     _i526.EnvironmentFilter? environmentFilter,
-  }) {
+  }) async {
     final gh = _i526.GetItHelper(this, environment, environmentFilter);
     final registerModule = _$RegisterModule();
+    await gh.factoryAsync<_i460.SharedPreferences>(
+      () => registerModule.prefs,
+      preResolve: true,
+    );
     gh.lazySingleton<_i361.Dio>(() => registerModule.dio);
     gh.lazySingleton<_i605.AppRouter>(() => _i605.AppRouter());
     gh.lazySingleton<_i905.StatisticsRemoteDataSource>(
       () => _i905.StatisticsRemoteDataSourceImpl(gh<_i361.Dio>()),
+    );
+    gh.lazySingleton<_i517.AdminRemoteDataSource>(
+      () => _i517.AdminRemoteDataSourceImpl(gh<_i361.Dio>()),
+    );
+    gh.factory<_i930.ThemeBloc>(
+      () => _i930.ThemeBloc(gh<_i460.SharedPreferences>()),
     );
     gh.lazySingleton<_i153.AuthRemoteDataSource>(
       () => _i153.AuthRemoteDataSourceImpl(gh<_i361.Dio>()),
@@ -136,6 +164,9 @@ extension GetItInjectableX on _i174.GetIt {
     );
     gh.lazySingleton<_i617.NotificationService>(
       () => _i617.NotificationService(gh<_i361.Dio>()),
+    );
+    gh.lazySingleton<_i63.PushNotificationService>(
+      () => _i63.PushNotificationService(gh<_i361.Dio>()),
     );
     gh.lazySingleton<_i407.NotificationRemoteDataSource>(
       () => _i407.NotificationRemoteDataSourceImpl(gh<_i361.Dio>()),
@@ -215,6 +246,9 @@ extension GetItInjectableX on _i174.GetIt {
     gh.lazySingleton<_i952.MealPlanRepository>(
       () => _i314.MealPlanRepositoryImpl(gh<_i314.MealPlanRemoteDataSource>()),
     );
+    gh.lazySingleton<_i583.AdminRepository>(
+      () => _i335.AdminRepositoryImpl(gh<_i517.AdminRemoteDataSource>()),
+    );
     gh.lazySingleton<_i347.GetAllRecipesUseCase>(
       () => _i347.GetAllRecipesUseCase(gh<_i76.RecipeRepository>()),
     );
@@ -251,6 +285,9 @@ extension GetItInjectableX on _i174.GetIt {
     gh.lazySingleton<_i326.RemoveFridgeItemUseCase>(
       () => _i326.RemoveFridgeItemUseCase(gh<_i201.FridgeRepository>()),
     );
+    gh.lazySingleton<_i326.ConsumeFridgeItemUseCase>(
+      () => _i326.ConsumeFridgeItemUseCase(gh<_i201.FridgeRepository>()),
+    );
     gh.factory<_i923.StatisticsBloc>(
       () => _i923.StatisticsBloc(
         gh<_i1043.GetConsumptionStatsUseCase>(),
@@ -269,6 +306,12 @@ extension GetItInjectableX on _i174.GetIt {
     gh.lazySingleton<_i312.GetNotificationsUseCase>(
       () => _i312.GetNotificationsUseCase(gh<_i630.NotificationRepository>()),
     );
+    gh.lazySingleton<_i312.MarkAsReadUseCase>(
+      () => _i312.MarkAsReadUseCase(gh<_i630.NotificationRepository>()),
+    );
+    gh.lazySingleton<_i312.MarkAllReadUseCase>(
+      () => _i312.MarkAllReadUseCase(gh<_i630.NotificationRepository>()),
+    );
     gh.lazySingleton<_i125.GetCategoriesUseCase>(
       () => _i125.GetCategoriesUseCase(gh<_i869.CategoryRepository>()),
     );
@@ -285,14 +328,35 @@ extension GetItInjectableX on _i174.GetIt {
     gh.lazySingleton<_i998.AddMemberUseCase>(
       () => _i998.AddMemberUseCase(gh<_i702.GroupRepository>()),
     );
+    gh.lazySingleton<_i382.CreateGroupUseCase>(
+      () => _i382.CreateGroupUseCase(gh<_i702.GroupRepository>()),
+    );
     gh.lazySingleton<_i316.GetGroupsUseCase>(
       () => _i316.GetGroupsUseCase(gh<_i702.GroupRepository>()),
     );
     gh.lazySingleton<_i742.GetGroupDetailUseCase>(
       () => _i742.GetGroupDetailUseCase(gh<_i702.GroupRepository>()),
     );
-    gh.lazySingleton<_i382.CreateGroupUseCase>(
-      () => _i382.CreateGroupUseCase(gh<_i702.GroupRepository>()),
+    gh.lazySingleton<_i909.RemoveMemberUseCase>(
+      () => _i909.RemoveMemberUseCase(gh<_i702.GroupRepository>()),
+    );
+    gh.lazySingleton<_i845.GroupBloc>(
+      () => _i845.GroupBloc(
+        gh<_i316.GetGroupsUseCase>(),
+        gh<_i742.GetGroupDetailUseCase>(),
+        gh<_i998.AddMemberUseCase>(),
+        gh<_i382.CreateGroupUseCase>(),
+        gh<_i909.RemoveMemberUseCase>(),
+      ),
+    );
+    gh.lazySingleton<_i307.GetSystemStatsUseCase>(
+      () => _i307.GetSystemStatsUseCase(gh<_i583.AdminRepository>()),
+    );
+    gh.lazySingleton<_i695.GetAdminUsersUseCase>(
+      () => _i695.GetAdminUsersUseCase(gh<_i583.AdminRepository>()),
+    );
+    gh.lazySingleton<_i179.UpdateUserRoleUseCase>(
+      () => _i179.UpdateUserRoleUseCase(gh<_i583.AdminRepository>()),
     );
     gh.factory<_i747.UserBloc>(
       () => _i747.UserBloc(
@@ -312,19 +376,22 @@ extension GetItInjectableX on _i174.GetIt {
     gh.lazySingleton<_i381.GetMealSuggestionsUseCase>(
       () => _i381.GetMealSuggestionsUseCase(gh<_i952.MealPlanRepository>()),
     );
-    gh.factory<_i29.NotificationBloc>(
-      () => _i29.NotificationBloc(gh<_i312.GetNotificationsUseCase>()),
-    );
-    gh.lazySingleton<_i845.GroupBloc>(
-      () => _i845.GroupBloc(
-        gh<_i316.GetGroupsUseCase>(),
-        gh<_i742.GetGroupDetailUseCase>(),
-        gh<_i998.AddMemberUseCase>(),
-        gh<_i382.CreateGroupUseCase>(),
+    gh.factory<_i55.AdminBloc>(
+      () => _i55.AdminBloc(
+        gh<_i307.GetSystemStatsUseCase>(),
+        gh<_i695.GetAdminUsersUseCase>(),
+        gh<_i179.UpdateUserRoleUseCase>(),
       ),
     );
     gh.factory<_i292.CategoryBloc>(
       () => _i292.CategoryBloc(gh<_i125.GetCategoriesUseCase>()),
+    );
+    gh.factory<_i29.NotificationBloc>(
+      () => _i29.NotificationBloc(
+        gh<_i312.GetNotificationsUseCase>(),
+        gh<_i312.MarkAsReadUseCase>(),
+        gh<_i312.MarkAllReadUseCase>(),
+      ),
     );
     gh.factory<_i742.FridgeBloc>(
       () => _i742.FridgeBloc(
@@ -332,6 +399,7 @@ extension GetItInjectableX on _i174.GetIt {
         gh<_i326.AddFridgeItemUseCase>(),
         gh<_i326.UpdateFridgeItemUseCase>(),
         gh<_i326.RemoveFridgeItemUseCase>(),
+        gh<_i326.ConsumeFridgeItemUseCase>(),
         gh<_i125.GetCategoriesUseCase>(),
       ),
     );

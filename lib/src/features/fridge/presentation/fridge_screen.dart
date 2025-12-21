@@ -245,13 +245,7 @@ class _FridgeScreenState extends State<FridgeScreen> {
 
     return GestureDetector(
       onTap: () {
-        showDialog(
-          context: context,
-          builder: (_) => _EditFridgeItemDialog(item: item),
-        );
-      },
-      onLongPress: () {
-        _showDeleteDialog(context, foodName);
+        _showItemActions(context, item);
       },
       child: Container(
         decoration: BoxDecoration(
@@ -357,28 +351,220 @@ class _FridgeScreenState extends State<FridgeScreen> {
     ).animate().scale(delay: (index * 50).ms, duration: 300.ms);
   }
 
-  void _showDeleteDialog(BuildContext context, String foodName) {
-    showDialog(
+  void _showItemActions(BuildContext context, dynamic item) {
+    final groupId = context.read<GroupBloc>().state.selectedGroupId;
+
+    showModalBottomSheet(
       context: context,
-      builder: (ctx) => AlertDialog(
-        title: const Text('Xoá món này?'),
-        content: Text('Bạn có muốn bỏ $foodName khỏi tủ lạnh không?'),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx),
-            child: const Text('Giữ lại'),
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (ctx) => Padding(
+        padding: const EdgeInsets.all(20),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Container(
+              width: 40,
+              height: 4,
+              decoration: BoxDecoration(
+                color: Colors.grey[300],
+                borderRadius: BorderRadius.circular(2),
+              ),
+            ),
+            const SizedBox(height: 16),
+            Text(
+              item.foodName,
+              style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+            ),
+            Text(
+              'Số lượng: ${item.quantity}',
+              style: TextStyle(color: Colors.grey[600]),
+            ),
+            const SizedBox(height: 24),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+              children: [
+                // Consume
+                _buildActionButton(
+                  icon: LucideIcons.utensils,
+                  label: 'Sử dụng',
+                  color: Colors.green,
+                  onTap: () {
+                    Navigator.pop(ctx);
+                    showDialog(
+                      context: context,
+                      builder: (_) => _ConsumeDialog(item: item),
+                    );
+                  },
+                ),
+                // Edit
+                _buildActionButton(
+                  icon: LucideIcons.edit3,
+                  label: 'Sửa',
+                  color: Colors.blue,
+                  onTap: () {
+                    Navigator.pop(ctx);
+                    showDialog(
+                      context: context,
+                      builder: (_) => _EditFridgeItemDialog(item: item),
+                    );
+                  },
+                ),
+                // Delete
+                _buildActionButton(
+                  icon: LucideIcons.trash2,
+                  label: 'Bỏ đi',
+                  color: Colors.red,
+                  onTap: () {
+                    Navigator.pop(ctx);
+                    context.read<FridgeBloc>().add(
+                      RemoveItem(item.foodName, groupId),
+                    );
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(content: Text('Đã bỏ "${item.foodName}"')),
+                    );
+                  },
+                ),
+              ],
+            ),
+            const SizedBox(height: 16),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildActionButton({
+    required IconData icon,
+    required String label,
+    required Color color,
+    required VoidCallback onTap,
+  }) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Column(
+        children: [
+          Container(
+            padding: const EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              color: color.withOpacity(0.1),
+              shape: BoxShape.circle,
+            ),
+            child: Icon(icon, color: color, size: 24),
           ),
-          FilledButton(
-            style: FilledButton.styleFrom(backgroundColor: Colors.red),
-            onPressed: () {
-              final groupId = context.read<GroupBloc>().state.selectedGroupId;
-              context.read<FridgeBloc>().add(RemoveItem(foodName, groupId));
-              Navigator.pop(ctx);
-            },
-            child: const Text('Xoá'),
+          const SizedBox(height: 8),
+          Text(
+            label,
+            style: TextStyle(color: color, fontWeight: FontWeight.w500),
           ),
         ],
       ),
+    );
+  }
+}
+
+// Consume Dialog
+class _ConsumeDialog extends StatefulWidget {
+  final dynamic item;
+  const _ConsumeDialog({required this.item});
+  @override
+  State<_ConsumeDialog> createState() => _ConsumeDialogState();
+}
+
+class _ConsumeDialogState extends State<_ConsumeDialog> {
+  late double _quantity;
+  late double _maxQuantity;
+
+  @override
+  void initState() {
+    super.initState();
+    _maxQuantity = double.tryParse(widget.item.quantity.toString()) ?? 1;
+    _quantity = _maxQuantity; // Default to consume all
+  }
+
+  void _consume() {
+    final groupId = context.read<GroupBloc>().state.selectedGroupId;
+    context.read<FridgeBloc>().add(
+      ConsumeItem(
+        foodName: widget.item.foodName,
+        quantity: _quantity,
+        groupId: groupId,
+      ),
+    );
+    Navigator.pop(context);
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text('Đã sử dụng $_quantity ${widget.item.foodName}'),
+        backgroundColor: Colors.green,
+      ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AlertDialog(
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+      title: Row(
+        children: [
+          Icon(LucideIcons.utensils, color: Colors.green),
+          const SizedBox(width: 12),
+          const Text('Sử dụng thực phẩm'),
+        ],
+      ),
+      content: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Container(
+            padding: const EdgeInsets.all(12),
+            decoration: BoxDecoration(
+              color: Colors.green.withOpacity(0.1),
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: Row(
+              children: [
+                Icon(LucideIcons.chefHat, color: Colors.green),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Text(
+                    widget.item.foodName,
+                    style: const TextStyle(
+                      fontWeight: FontWeight.bold,
+                      fontSize: 16,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 20),
+          Text('Số lượng sử dụng: ${_quantity.toStringAsFixed(1)}'),
+          Slider(
+            value: _quantity,
+            min: 0.5,
+            max: _maxQuantity,
+            divisions: (_maxQuantity * 2).toInt(),
+            label: _quantity.toStringAsFixed(1),
+            activeColor: Colors.green,
+            onChanged: (value) => setState(() => _quantity = value),
+          ),
+          Text(
+            'Còn lại: ${(_maxQuantity - _quantity).toStringAsFixed(1)}',
+            style: TextStyle(color: Colors.grey[600], fontSize: 13),
+          ),
+        ],
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.pop(context),
+          child: const Text('Huỷ'),
+        ),
+        FilledButton(
+          style: FilledButton.styleFrom(backgroundColor: Colors.green),
+          onPressed: _consume,
+          child: const Text('Sử dụng'),
+        ),
+      ],
     );
   }
 }

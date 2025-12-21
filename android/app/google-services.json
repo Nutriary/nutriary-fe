@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "857534386870",
+    "project_id": "nutriary-18a67",
+    "storage_bucket": "nutriary-18a67.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:857534386870:android:97027e036e9a18cfe0cc17",
+        "android_client_info": {
+          "package_name": "com.example.smartmarket"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyB2C6eQ6xrQ6iH-a25_rXqZketWu0paYz0"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

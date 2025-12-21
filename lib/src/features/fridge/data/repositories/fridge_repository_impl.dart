@@ -22,6 +22,11 @@ abstract class FridgeRemoteDataSource {
     int? groupId,
   });
   Future<void> removeFridgeItem(String foodName, int? groupId);
+  Future<void> consumeFridgeItem({
+    required String foodName,
+    required double quantity,
+    int? groupId,
+  });
 }
 
 @LazySingleton(as: FridgeRemoteDataSource)
@@ -35,7 +40,7 @@ class FridgeRemoteDataSourceImpl implements FridgeRemoteDataSource {
       '/fridge',
       queryParameters: {
         'page': 1,
-        'size': 100, // Or implement pagination later
+        'size': 100,
         if (groupId != null) 'groupId': groupId,
       },
     );
@@ -90,7 +95,28 @@ class FridgeRemoteDataSourceImpl implements FridgeRemoteDataSource {
   Future<void> removeFridgeItem(String foodName, int? groupId) async {
     await _dio.delete(
       '/fridge',
-      data: {'foodName': foodName, if (groupId != null) 'groupId': groupId},
+      data: {
+        'foodName': foodName,
+        'action': 'TRASH',
+        if (groupId != null) 'groupId': groupId,
+      },
+    );
+  }
+
+  @override
+  Future<void> consumeFridgeItem({
+    required String foodName,
+    required double quantity,
+    int? groupId,
+  }) async {
+    await _dio.delete(
+      '/fridge',
+      data: {
+        'foodName': foodName,
+        'action': 'CONSUMED',
+        'quantity': quantity,
+        if (groupId != null) 'groupId': groupId,
+      },
     );
   }
 }
@@ -175,6 +201,28 @@ class FridgeRepositoryImpl implements FridgeRepository {
     } on DioException catch (e) {
       return Left(
         ServerFailure(e.response?.data['message'] ?? 'Failed to remove item'),
+      );
+    } catch (e) {
+      return Left(ServerFailure(e.toString()));
+    }
+  }
+
+  @override
+  Future<Either<Failure, void>> consumeFridgeItem({
+    required String foodName,
+    required double quantity,
+    int? groupId,
+  }) async {
+    try {
+      await _dataSource.consumeFridgeItem(
+        foodName: foodName,
+        quantity: quantity,
+        groupId: groupId,
+      );
+      return const Right(null);
+    } on DioException catch (e) {
+      return Left(
+        ServerFailure(e.response?.data['message'] ?? 'Failed to consume item'),
       );
     } catch (e) {
       return Left(ServerFailure(e.toString()));

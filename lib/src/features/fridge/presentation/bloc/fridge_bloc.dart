@@ -13,6 +13,7 @@ class FridgeBloc extends Bloc<FridgeEvent, FridgeState> {
   final AddFridgeItemUseCase addFridgeItemUseCase;
   final UpdateFridgeItemUseCase updateFridgeItemUseCase;
   final RemoveFridgeItemUseCase removeFridgeItemUseCase;
+  final ConsumeFridgeItemUseCase consumeFridgeItemUseCase;
   final GetCategoriesUseCase getCategoriesUseCase;
 
   FridgeBloc(
@@ -20,6 +21,7 @@ class FridgeBloc extends Bloc<FridgeEvent, FridgeState> {
     this.addFridgeItemUseCase,
     this.updateFridgeItemUseCase,
     this.removeFridgeItemUseCase,
+    this.consumeFridgeItemUseCase,
     this.getCategoriesUseCase,
   ) : super(const FridgeState()) {
     on<LoadFridgeItems>(_onLoadFridgeItems);
@@ -28,6 +30,7 @@ class FridgeBloc extends Bloc<FridgeEvent, FridgeState> {
     on<AddItem>(_onAddItem);
     on<UpdateItem>(_onUpdateItem);
     on<RemoveItem>(_onRemoveItem);
+    on<ConsumeItem>(_onConsumeItem);
   }
 
   Future<void> _onLoadFridgeItems(
@@ -54,7 +57,7 @@ class FridgeBloc extends Bloc<FridgeEvent, FridgeState> {
   ) async {
     final result = await getCategoriesUseCase(NoParams());
     result.fold(
-      (failure) => null, // Ignore category load failure or log it
+      (failure) => null,
       (categories) => emit(state.copyWith(categories: categories)),
     );
   }
@@ -121,6 +124,29 @@ class FridgeBloc extends Bloc<FridgeEvent, FridgeState> {
     emit(state.copyWith(isLoadingAction: true, errorMessage: null));
     final result = await removeFridgeItemUseCase(
       RemoveFridgeItemParams(event.foodName, event.groupId),
+    );
+    result.fold(
+      (failure) => emit(
+        state.copyWith(isLoadingAction: false, errorMessage: failure.message),
+      ),
+      (_) {
+        emit(state.copyWith(isLoadingAction: false));
+        add(LoadFridgeItems(event.groupId));
+      },
+    );
+  }
+
+  Future<void> _onConsumeItem(
+    ConsumeItem event,
+    Emitter<FridgeState> emit,
+  ) async {
+    emit(state.copyWith(isLoadingAction: true, errorMessage: null));
+    final result = await consumeFridgeItemUseCase(
+      ConsumeFridgeItemParams(
+        foodName: event.foodName,
+        quantity: event.quantity,
+        groupId: event.groupId,
+      ),
     );
     result.fold(
       (failure) => emit(
