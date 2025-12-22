@@ -45,7 +45,7 @@ class NotificationScreen extends StatelessWidget {
               separatorBuilder: (context, index) => const Divider(height: 1),
               itemBuilder: (context, index) {
                 final item = notifications[index];
-                final date = item.createdAt;
+                final date = item.createdAt.toLocal();
                 final isRead = item.isRead;
 
                 return ListTile(
@@ -81,7 +81,7 @@ class NotificationScreen extends StatelessWidget {
                       Text(item.body),
                       const SizedBox(height: 4),
                       Text(
-                        "${date.day}/${date.month} ${date.hour}:${date.minute}",
+                        "${date.day.toString().padLeft(2, '0')}/${date.month.toString().padLeft(2, '0')} ${date.hour.toString().padLeft(2, '0')}:${date.minute.toString().padLeft(2, '0')}",
                         style: TextStyle(fontSize: 12, color: Colors.grey[600]),
                       ),
                     ],

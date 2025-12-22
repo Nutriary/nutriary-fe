@@ -7,6 +7,7 @@ import 'package:nutriary_fe/src/features/auth/presentation/login_screen.dart';
 import 'package:nutriary_fe/src/features/auth/presentation/register_screen.dart';
 import 'package:nutriary_fe/src/features/home/presentation/home_screen.dart';
 import 'package:nutriary_fe/src/features/shopping_list/presentation/shopping_list_detail_screen.dart';
+import 'package:nutriary_fe/src/features/shopping_list/presentation/shopping_list_management_screen.dart';
 import 'package:nutriary_fe/src/features/fridge/presentation/fridge_screen.dart';
 import 'package:nutriary_fe/src/features/recipe/presentation/recipe_screen.dart';
 import 'package:nutriary_fe/src/features/meal_plan/presentation/meal_plan_screen.dart';
@@ -83,6 +84,11 @@ class AppRouter {
                     builder: (context, state) => ShoppingListDetailScreen(
                       listId: state.pathParameters['id']!,
                     ),
+                  ),
+                  GoRoute(
+                    path: 'shopping-lists',
+                    builder: (context, state) =>
+                        const ShoppingListManagementScreen(),
                   ),
                 ],
               ),

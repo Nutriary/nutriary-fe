@@ -20,6 +20,8 @@ import '../../features/admin/data/repositories/admin_repository_impl.dart'
     as _i335;
 import '../../features/admin/domain/repositories/admin_repository.dart'
     as _i583;
+import '../../features/admin/domain/usecases/delete_user_by_admin_usecase.dart'
+    as _i647;
 import '../../features/admin/domain/usecases/get_admin_users_usecase.dart'
     as _i695;
 import '../../features/admin/domain/usecases/get_system_stats_usecase.dart'
@@ -40,9 +42,25 @@ import '../../features/category/data/repositories/category_repository_impl.dart'
     as _i528;
 import '../../features/category/domain/repositories/category_repository.dart'
     as _i869;
+import '../../features/category/domain/usecases/create_category_usecase.dart'
+    as _i894;
+import '../../features/category/domain/usecases/delete_category_usecase.dart'
+    as _i1064;
 import '../../features/category/domain/usecases/get_categories_usecase.dart'
     as _i125;
+import '../../features/category/domain/usecases/update_category_usecase.dart'
+    as _i312;
 import '../../features/category/presentation/bloc/category_bloc.dart' as _i292;
+import '../../features/food/data/datasources/food_remote_data_source.dart'
+    as _i81;
+import '../../features/food/data/repositories/food_repository_impl.dart'
+    as _i860;
+import '../../features/food/domain/repositories/food_repository.dart' as _i780;
+import '../../features/food/domain/usecases/create_food_usecase.dart' as _i49;
+import '../../features/food/domain/usecases/delete_food_usecase.dart' as _i995;
+import '../../features/food/domain/usecases/get_foods_usecase.dart' as _i332;
+import '../../features/food/domain/usecases/update_food_usecase.dart' as _i401;
+import '../../features/food/presentation/bloc/food_bloc.dart' as _i986;
 import '../../features/fridge/data/repositories/fridge_repository_impl.dart'
     as _i986;
 import '../../features/fridge/domain/repositories/fridge_repository.dart'
@@ -107,9 +125,22 @@ import '../../features/statistics/domain/usecases/statistics_usecases.dart'
     as _i1043;
 import '../../features/statistics/presentation/bloc/statistics_bloc.dart'
     as _i923;
+import '../../features/unit/data/repositories/unit_repository_impl.dart'
+    as _i49;
+import '../../features/unit/domain/repositories/unit_repository.dart' as _i86;
+import '../../features/unit/domain/usecases/create_unit_usecase.dart' as _i411;
+import '../../features/unit/domain/usecases/delete_unit_usecase.dart' as _i901;
+import '../../features/unit/domain/usecases/get_units_usecase.dart' as _i77;
+import '../../features/unit/domain/usecases/update_unit_usecase.dart' as _i85;
+import '../../features/unit/presentation/bloc/unit_bloc.dart' as _i1063;
 import '../../features/user/data/repositories/user_repository_impl.dart'
     as _i664;
 import '../../features/user/domain/repositories/user_repository.dart' as _i237;
+import '../../features/user/domain/usecases/change_password_usecase.dart'
+    as _i578;
+import '../../features/user/domain/usecases/delete_account_usecase.dart'
+    as _i629;
+import '../../features/user/domain/usecases/update_user_usecase.dart' as _i586;
 import '../../features/user/domain/usecases/user_usecases.dart' as _i804;
 import '../../features/user/presentation/bloc/user_bloc.dart' as _i747;
 import '../../routing/app_router.dart' as _i605;
@@ -130,17 +161,43 @@ extension GetItInjectableX on _i174.GetIt {
     );
     gh.lazySingleton<_i361.Dio>(() => registerModule.dio);
     gh.lazySingleton<_i605.AppRouter>(() => _i605.AppRouter());
+    gh.lazySingleton<_i49.UnitRemoteDataSource>(
+      () => _i49.UnitRemoteDataSourceImpl(gh<_i361.Dio>()),
+    );
     gh.lazySingleton<_i905.StatisticsRemoteDataSource>(
       () => _i905.StatisticsRemoteDataSourceImpl(gh<_i361.Dio>()),
     );
     gh.lazySingleton<_i517.AdminRemoteDataSource>(
       () => _i517.AdminRemoteDataSourceImpl(gh<_i361.Dio>()),
     );
+    gh.lazySingleton<_i86.UnitRepository>(
+      () => _i49.UnitRepositoryImpl(gh<_i49.UnitRemoteDataSource>()),
+    );
     gh.factory<_i930.ThemeBloc>(
       () => _i930.ThemeBloc(gh<_i460.SharedPreferences>()),
     );
     gh.lazySingleton<_i153.AuthRemoteDataSource>(
       () => _i153.AuthRemoteDataSourceImpl(gh<_i361.Dio>()),
+    );
+    gh.lazySingleton<_i411.CreateUnitUseCase>(
+      () => _i411.CreateUnitUseCase(gh<_i86.UnitRepository>()),
+    );
+    gh.lazySingleton<_i901.DeleteUnitUseCase>(
+      () => _i901.DeleteUnitUseCase(gh<_i86.UnitRepository>()),
+    );
+    gh.lazySingleton<_i77.GetUnitsUseCase>(
+      () => _i77.GetUnitsUseCase(gh<_i86.UnitRepository>()),
+    );
+    gh.lazySingleton<_i85.UpdateUnitUseCase>(
+      () => _i85.UpdateUnitUseCase(gh<_i86.UnitRepository>()),
+    );
+    gh.factory<_i1063.UnitBloc>(
+      () => _i1063.UnitBloc(
+        gh<_i77.GetUnitsUseCase>(),
+        gh<_i411.CreateUnitUseCase>(),
+        gh<_i85.UpdateUnitUseCase>(),
+        gh<_i901.DeleteUnitUseCase>(),
+      ),
     );
     gh.lazySingleton<_i986.FridgeRemoteDataSource>(
       () => _i986.FridgeRemoteDataSourceImpl(gh<_i361.Dio>()),
@@ -154,6 +211,9 @@ extension GetItInjectableX on _i174.GetIt {
     gh.lazySingleton<_i664.UserRemoteDataSource>(
       () => _i664.UserRemoteDataSourceImpl(gh<_i361.Dio>()),
     );
+    gh.lazySingleton<_i81.FoodRemoteDataSource>(
+      () => _i81.FoodRemoteDataSourceImpl(gh<_i361.Dio>()),
+    );
     gh.lazySingleton<_i148.GroupRemoteDataSource>(
       () => _i148.GroupRemoteDataSourceImpl(gh<_i361.Dio>()),
     );
@@ -162,11 +222,11 @@ extension GetItInjectableX on _i174.GetIt {
         gh<_i905.StatisticsRemoteDataSource>(),
       ),
     );
-    gh.lazySingleton<_i617.NotificationService>(
-      () => _i617.NotificationService(gh<_i361.Dio>()),
-    );
     gh.lazySingleton<_i63.PushNotificationService>(
       () => _i63.PushNotificationService(gh<_i361.Dio>()),
+    );
+    gh.lazySingleton<_i617.NotificationService>(
+      () => _i617.NotificationService(gh<_i361.Dio>()),
     );
     gh.lazySingleton<_i407.NotificationRemoteDataSource>(
       () => _i407.NotificationRemoteDataSourceImpl(gh<_i361.Dio>()),
@@ -191,6 +251,12 @@ extension GetItInjectableX on _i174.GetIt {
     );
     gh.lazySingleton<_i313.CreateShoppingListUseCase>(
       () => _i313.CreateShoppingListUseCase(gh<_i933.ShoppingRepository>()),
+    );
+    gh.lazySingleton<_i313.UpdateShoppingListUseCase>(
+      () => _i313.UpdateShoppingListUseCase(gh<_i933.ShoppingRepository>()),
+    );
+    gh.lazySingleton<_i313.DeleteShoppingListUseCase>(
+      () => _i313.DeleteShoppingListUseCase(gh<_i933.ShoppingRepository>()),
     );
     gh.lazySingleton<_i313.AddShoppingTaskUseCase>(
       () => _i313.AddShoppingTaskUseCase(gh<_i933.ShoppingRepository>()),
@@ -249,6 +315,21 @@ extension GetItInjectableX on _i174.GetIt {
     gh.lazySingleton<_i583.AdminRepository>(
       () => _i335.AdminRepositoryImpl(gh<_i517.AdminRemoteDataSource>()),
     );
+    gh.lazySingleton<_i780.FoodRepository>(
+      () => _i860.FoodRepositoryImpl(gh<_i81.FoodRemoteDataSource>()),
+    );
+    gh.lazySingleton<_i647.DeleteUserByAdminUseCase>(
+      () => _i647.DeleteUserByAdminUseCase(gh<_i583.AdminRepository>()),
+    );
+    gh.lazySingleton<_i578.ChangePasswordUseCase>(
+      () => _i578.ChangePasswordUseCase(gh<_i237.UserRepository>()),
+    );
+    gh.lazySingleton<_i629.DeleteAccountUseCase>(
+      () => _i629.DeleteAccountUseCase(gh<_i237.UserRepository>()),
+    );
+    gh.lazySingleton<_i586.UpdateUserUseCase>(
+      () => _i586.UpdateUserUseCase(gh<_i237.UserRepository>()),
+    );
     gh.lazySingleton<_i347.GetAllRecipesUseCase>(
       () => _i347.GetAllRecipesUseCase(gh<_i76.RecipeRepository>()),
     );
@@ -263,6 +344,18 @@ extension GetItInjectableX on _i174.GetIt {
     );
     gh.lazySingleton<_i347.GetRecipesByFoodUseCase>(
       () => _i347.GetRecipesByFoodUseCase(gh<_i76.RecipeRepository>()),
+    );
+    gh.factory<_i192.ShoppingBloc>(
+      () => _i192.ShoppingBloc(
+        gh<_i313.GetShoppingTasksUseCase>(),
+        gh<_i313.CreateShoppingListUseCase>(),
+        gh<_i313.AddShoppingTaskUseCase>(),
+        gh<_i313.UpdateShoppingTaskUseCase>(),
+        gh<_i313.DeleteShoppingTaskUseCase>(),
+        gh<_i313.ReorderShoppingTasksUseCase>(),
+        gh<_i313.UpdateShoppingListUseCase>(),
+        gh<_i313.DeleteShoppingListUseCase>(),
+      ),
     );
     gh.factory<_i662.RecipeBloc>(
       () => _i662.RecipeBloc(
@@ -312,18 +405,17 @@ extension GetItInjectableX on _i174.GetIt {
     gh.lazySingleton<_i312.MarkAllReadUseCase>(
       () => _i312.MarkAllReadUseCase(gh<_i630.NotificationRepository>()),
     );
+    gh.lazySingleton<_i894.CreateCategoryUseCase>(
+      () => _i894.CreateCategoryUseCase(gh<_i869.CategoryRepository>()),
+    );
+    gh.lazySingleton<_i1064.DeleteCategoryUseCase>(
+      () => _i1064.DeleteCategoryUseCase(gh<_i869.CategoryRepository>()),
+    );
     gh.lazySingleton<_i125.GetCategoriesUseCase>(
       () => _i125.GetCategoriesUseCase(gh<_i869.CategoryRepository>()),
     );
-    gh.factory<_i192.ShoppingBloc>(
-      () => _i192.ShoppingBloc(
-        gh<_i313.GetShoppingTasksUseCase>(),
-        gh<_i313.CreateShoppingListUseCase>(),
-        gh<_i313.AddShoppingTaskUseCase>(),
-        gh<_i313.UpdateShoppingTaskUseCase>(),
-        gh<_i313.DeleteShoppingTaskUseCase>(),
-        gh<_i313.ReorderShoppingTasksUseCase>(),
-      ),
+    gh.lazySingleton<_i312.UpdateCategoryUseCase>(
+      () => _i312.UpdateCategoryUseCase(gh<_i869.CategoryRepository>()),
     );
     gh.lazySingleton<_i998.AddMemberUseCase>(
       () => _i998.AddMemberUseCase(gh<_i702.GroupRepository>()),
@@ -340,6 +432,18 @@ extension GetItInjectableX on _i174.GetIt {
     gh.lazySingleton<_i909.RemoveMemberUseCase>(
       () => _i909.RemoveMemberUseCase(gh<_i702.GroupRepository>()),
     );
+    gh.lazySingleton<_i49.CreateFoodUseCase>(
+      () => _i49.CreateFoodUseCase(gh<_i780.FoodRepository>()),
+    );
+    gh.lazySingleton<_i995.DeleteFoodUseCase>(
+      () => _i995.DeleteFoodUseCase(gh<_i780.FoodRepository>()),
+    );
+    gh.lazySingleton<_i332.GetFoodsUseCase>(
+      () => _i332.GetFoodsUseCase(gh<_i780.FoodRepository>()),
+    );
+    gh.lazySingleton<_i401.UpdateFoodUseCase>(
+      () => _i401.UpdateFoodUseCase(gh<_i780.FoodRepository>()),
+    );
     gh.lazySingleton<_i845.GroupBloc>(
       () => _i845.GroupBloc(
         gh<_i316.GetGroupsUseCase>(),
@@ -349,20 +453,14 @@ extension GetItInjectableX on _i174.GetIt {
         gh<_i909.RemoveMemberUseCase>(),
       ),
     );
-    gh.lazySingleton<_i307.GetSystemStatsUseCase>(
-      () => _i307.GetSystemStatsUseCase(gh<_i583.AdminRepository>()),
-    );
     gh.lazySingleton<_i695.GetAdminUsersUseCase>(
       () => _i695.GetAdminUsersUseCase(gh<_i583.AdminRepository>()),
     );
+    gh.lazySingleton<_i307.GetSystemStatsUseCase>(
+      () => _i307.GetSystemStatsUseCase(gh<_i583.AdminRepository>()),
+    );
     gh.lazySingleton<_i179.UpdateUserRoleUseCase>(
       () => _i179.UpdateUserRoleUseCase(gh<_i583.AdminRepository>()),
-    );
-    gh.factory<_i747.UserBloc>(
-      () => _i747.UserBloc(
-        gh<_i804.GetProfileUseCase>(),
-        gh<_i804.UpdateFcmTokenUseCase>(),
-      ),
     );
     gh.lazySingleton<_i381.GetMealPlanUseCase>(
       () => _i381.GetMealPlanUseCase(gh<_i952.MealPlanRepository>()),
@@ -376,21 +474,28 @@ extension GetItInjectableX on _i174.GetIt {
     gh.lazySingleton<_i381.GetMealSuggestionsUseCase>(
       () => _i381.GetMealSuggestionsUseCase(gh<_i952.MealPlanRepository>()),
     );
-    gh.factory<_i55.AdminBloc>(
-      () => _i55.AdminBloc(
-        gh<_i307.GetSystemStatsUseCase>(),
-        gh<_i695.GetAdminUsersUseCase>(),
-        gh<_i179.UpdateUserRoleUseCase>(),
-      ),
-    );
     gh.factory<_i292.CategoryBloc>(
-      () => _i292.CategoryBloc(gh<_i125.GetCategoriesUseCase>()),
+      () => _i292.CategoryBloc(
+        gh<_i125.GetCategoriesUseCase>(),
+        gh<_i894.CreateCategoryUseCase>(),
+        gh<_i312.UpdateCategoryUseCase>(),
+        gh<_i1064.DeleteCategoryUseCase>(),
+      ),
     );
     gh.factory<_i29.NotificationBloc>(
       () => _i29.NotificationBloc(
         gh<_i312.GetNotificationsUseCase>(),
         gh<_i312.MarkAsReadUseCase>(),
         gh<_i312.MarkAllReadUseCase>(),
+      ),
+    );
+    gh.factory<_i747.UserBloc>(
+      () => _i747.UserBloc(
+        gh<_i804.GetProfileUseCase>(),
+        gh<_i804.UpdateFcmTokenUseCase>(),
+        gh<_i586.UpdateUserUseCase>(),
+        gh<_i578.ChangePasswordUseCase>(),
+        gh<_i629.DeleteAccountUseCase>(),
       ),
     );
     gh.factory<_i742.FridgeBloc>(
@@ -401,6 +506,22 @@ extension GetItInjectableX on _i174.GetIt {
         gh<_i326.RemoveFridgeItemUseCase>(),
         gh<_i326.ConsumeFridgeItemUseCase>(),
         gh<_i125.GetCategoriesUseCase>(),
+      ),
+    );
+    gh.factory<_i986.FoodBloc>(
+      () => _i986.FoodBloc(
+        gh<_i332.GetFoodsUseCase>(),
+        gh<_i49.CreateFoodUseCase>(),
+        gh<_i401.UpdateFoodUseCase>(),
+        gh<_i995.DeleteFoodUseCase>(),
+      ),
+    );
+    gh.factory<_i55.AdminBloc>(
+      () => _i55.AdminBloc(
+        gh<_i307.GetSystemStatsUseCase>(),
+        gh<_i695.GetAdminUsersUseCase>(),
+        gh<_i179.UpdateUserRoleUseCase>(),
+        gh<_i647.DeleteUserByAdminUseCase>(),
       ),
     );
     gh.factory<_i642.MealPlanBloc>(

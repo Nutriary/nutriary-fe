@@ -13,7 +13,7 @@ class GroupDetailModel extends GroupDetail {
       name: json['name'] ?? 'Unnamed Group',
       members:
           (json['members'] as List<dynamic>?)
-              ?.map((e) => GroupMemberModel.fromJson(e))
+              ?.map<GroupMember>((e) => GroupMemberModel.fromJson(e))
               .toList() ??
           [],
     );
@@ -30,11 +30,11 @@ class GroupMemberModel extends GroupMember {
 
   factory GroupMemberModel.fromJson(Map<String, dynamic> json) {
     final user = json['user'] ?? {};
-    return GroupMemberModel(
-      userId: user['id'] ?? 0,
-      username: user['username'] ?? 'Unknown',
-      email: user['email'] ?? '',
-      role: json['role'] ?? 'member',
-    );
-  }
+      return GroupMemberModel(
+        userId: user['id'] ?? 0,
+        username: user['username'] ?? 'Unknown',
+        email: user['email'] ?? '',
+        role: json['role'] ?? 'member',
+      );
+    }
 }

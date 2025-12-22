@@ -9,6 +9,11 @@ import 'package:nutriary_fe/src/features/admin/presentation/bloc/admin_bloc.dart
 import 'package:nutriary_fe/src/features/admin/presentation/bloc/admin_event.dart';
 import 'package:nutriary_fe/src/features/admin/presentation/bloc/admin_state.dart';
 import 'package:nutriary_fe/src/core/di/injection.dart';
+import 'package:nutriary_fe/src/features/unit/presentation/bloc/unit_bloc.dart';
+import 'package:nutriary_fe/src/features/unit/presentation/bloc/unit_event.dart';
+import 'package:nutriary_fe/src/features/unit/presentation/bloc/unit_state.dart';
+import 'package:nutriary_fe/src/features/unit/domain/entities/unit.dart';
+import '../../food/presentation/pages/food_management_screen.dart';
 
 class AdminScreen extends StatefulWidget {
   const AdminScreen({super.key});
@@ -251,6 +256,27 @@ class _AdminScreenState extends State<AdminScreen> {
                   ),
                 ],
               ),
+              const SizedBox(height: 16),
+              // Add Food Management Button
+              SizedBox(
+                width: double.infinity,
+                child: FilledButton.icon(
+                  onPressed: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (_) => const FoodManagementScreen(),
+                      ),
+                    );
+                  },
+                  style: FilledButton.styleFrom(
+                    backgroundColor: Colors.white,
+                    foregroundColor: theme.colorScheme.primary,
+                  ),
+                  icon: const Icon(Icons.fastfood),
+                  label: const Text('Quản lý thực phẩm'),
+                ),
+              ),
             ],
           ),
         );
@@ -284,51 +310,25 @@ class _AdminScreenState extends State<AdminScreen> {
   }
 
   void _showUnitManagement(BuildContext context) {
+    final bloc = getIt<UnitBloc>()..add(LoadUnits());
+
     showModalBottomSheet(
       context: context,
+      isScrollControlled: true,
       backgroundColor: Colors.transparent,
-      builder: (_) => Container(
-        padding: const EdgeInsets.all(20),
-        decoration: const BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-        ),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Center(
-              child: Container(
-                width: 40,
-                height: 4,
-                decoration: BoxDecoration(
-                  color: Colors.grey[300],
-                  borderRadius: BorderRadius.circular(2),
-                ),
-              ),
+      builder: (_) => BlocProvider.value(
+        value: bloc,
+        child: DraggableScrollableSheet(
+          initialChildSize: 0.7,
+          maxChildSize: 0.95,
+          minChildSize: 0.5,
+          builder: (_, scrollController) => Container(
+            decoration: const BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
             ),
-            const SizedBox(height: 20),
-            const Text(
-              'Đơn vị đo lường',
-              style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
-            ),
-            const SizedBox(height: 16),
-            Wrap(
-              spacing: 8,
-              runSpacing: 8,
-              children: [
-                _UnitChip(label: 'kg', fullName: 'Kilogram'),
-                _UnitChip(label: 'g', fullName: 'Gram'),
-                _UnitChip(label: 'l', fullName: 'Liter'),
-                _UnitChip(label: 'ml', fullName: 'Milliliter'),
-                _UnitChip(label: 'cái', fullName: 'Piece'),
-                _UnitChip(label: 'bó', fullName: 'Bunch'),
-                _UnitChip(label: 'hộp', fullName: 'Box'),
-                _UnitChip(label: 'gói', fullName: 'Package'),
-              ],
-            ),
-            const SizedBox(height: 20),
-          ],
+            child: _UnitManagementSheet(scrollController: scrollController),
+          ),
         ),
       ),
     );
@@ -430,7 +430,6 @@ class _AdminScreenState extends State<AdminScreen> {
                                         ],
                                       ),
                                     ),
-                                    // Role chip with toggle
                                     GestureDetector(
                                       onTap: () {
                                         final newRole = user.role == 'ADMIN'
@@ -467,6 +466,44 @@ class _AdminScreenState extends State<AdminScreen> {
                                           ),
                                         ),
                                       ),
+                                    ),
+                                    IconButton(
+                                      icon: const Icon(
+                                        Icons.delete_outline,
+                                        color: Colors.red,
+                                      ),
+                                      onPressed: () {
+                                        showDialog(
+                                          context: context,
+                                          builder: (ctx) => AlertDialog(
+                                            title: const Text(
+                                              'Xóa người dùng?',
+                                            ),
+                                            content: Text(
+                                              'Bạn có chắc muốn xóa "${user.name}"?',
+                                            ),
+                                            actions: [
+                                              TextButton(
+                                                onPressed: () =>
+                                                    Navigator.pop(ctx),
+                                                child: const Text('Hủy'),
+                                              ),
+                                              FilledButton(
+                                                style: FilledButton.styleFrom(
+                                                  backgroundColor: Colors.red,
+                                                ),
+                                                onPressed: () {
+                                                  _adminBloc.add(
+                                                    DeleteUser(user.id),
+                                                  );
+                                                  Navigator.pop(ctx);
+                                                },
+                                                child: const Text('Xóa'),
+                                              ),
+                                            ],
+                                          ),
+                                        );
+                                      },
                                     ),
                                   ],
                                 ),
@@ -678,100 +715,138 @@ class _CategoryManagementSheet extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Column(
-      children: [
-        const SizedBox(height: 12),
-        Container(
-          width: 40,
-          height: 4,
-          decoration: BoxDecoration(
-            color: Colors.grey[300],
-            borderRadius: BorderRadius.circular(2),
+    return BlocListener<CategoryBloc, CategoryState>(
+      listener: (context, state) {
+        if (!state.isLoadingAction && state.errorMessage == null) {
+          // If action successful (and not loading), maybe show success?
+          // Since we reload list, it's fine.
+          // Navigator pop is handled by dialogs usually.
+        }
+        if (state.errorMessage != null) {
+          ScaffoldMessenger.of(
+            context,
+          ).showSnackBar(SnackBar(content: Text(state.errorMessage!)));
+        }
+      },
+      child: Column(
+        children: [
+          const SizedBox(height: 12),
+          Container(
+            width: 40,
+            height: 4,
+            decoration: BoxDecoration(
+              color: Colors.grey[300],
+              borderRadius: BorderRadius.circular(2),
+            ),
           ),
-        ),
-        Padding(
-          padding: const EdgeInsets.all(16),
-          child: Row(
-            children: [
-              const Expanded(
-                child: Text(
-                  'Danh mục thực phẩm',
-                  style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
-                ),
-              ),
-              FilledButton.icon(
-                onPressed: () => _showAddCategoryDialog(context),
-                icon: const Icon(Icons.add),
-                label: const Text('Thêm'),
-              ),
-            ],
-          ),
-        ),
-        const Divider(height: 1),
-        Expanded(
-          child: BlocBuilder<CategoryBloc, CategoryState>(
-            builder: (context, state) {
-              if (state.status == CategoryStatus.loading) {
-                return const Center(child: CircularProgressIndicator());
-              }
-
-              if (state.categories.isEmpty) {
-                return Center(
-                  child: Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      Icon(
-                        Icons.folder_open,
-                        size: 64,
-                        color: Colors.grey[300],
-                      ),
-                      const SizedBox(height: 16),
-                      const Text('Chưa có danh mục nào'),
-                    ],
+          Padding(
+            padding: const EdgeInsets.all(16),
+            child: Row(
+              children: [
+                const Expanded(
+                  child: Text(
+                    'Danh mục thực phẩm',
+                    style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
                   ),
-                );
-              }
-
-              return ListView.builder(
-                controller: scrollController,
-                padding: const EdgeInsets.all(16),
-                itemCount: state.categories.length,
-                itemBuilder: (context, index) {
-                  final category = state.categories[index];
-                  return Container(
-                        margin: const EdgeInsets.only(bottom: 8),
-                        decoration: BoxDecoration(
-                          color: Colors.grey[50],
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                        child: ListTile(
-                          leading: Container(
-                            padding: const EdgeInsets.all(8),
-                            decoration: BoxDecoration(
-                              color: Colors.blue.withAlpha(30),
-                              borderRadius: BorderRadius.circular(8),
-                            ),
-                            child: const Icon(Icons.folder, color: Colors.blue),
-                          ),
-                          title: Text(
-                            category.name,
-                            style: const TextStyle(fontWeight: FontWeight.w600),
-                          ),
-                          trailing: IconButton(
-                            icon: const Icon(Icons.more_vert),
-                            onPressed: () {},
-                          ),
-                        ),
-                      )
-                      .animate(delay: Duration(milliseconds: 50 * index))
-                      .fadeIn()
-                      .slideX(begin: 0.1);
-                },
-              );
-            },
+                ),
+                FilledButton.icon(
+                  onPressed: () => _showAddCategoryDialog(context),
+                  icon: const Icon(Icons.add),
+                  label: const Text('Thêm'),
+                ),
+              ],
+            ),
           ),
-        ),
-      ],
+          const Divider(height: 1),
+          Expanded(
+            child: BlocBuilder<CategoryBloc, CategoryState>(
+              builder: (context, state) {
+                if (state.status == CategoryStatus.loading &&
+                    state.categories.isEmpty) {
+                  return const Center(child: CircularProgressIndicator());
+                }
+
+                if (state.categories.isEmpty) {
+                  return Center(
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Icon(
+                          Icons.folder_open,
+                          size: 64,
+                          color: Colors.grey[300],
+                        ),
+                        const SizedBox(height: 16),
+                        const Text('Chưa có danh mục nào'),
+                      ],
+                    ),
+                  );
+                }
+
+                return ListView.builder(
+                  controller: scrollController,
+                  padding: const EdgeInsets.all(16),
+                  itemCount: state.categories.length,
+                  itemBuilder: (context, index) {
+                    final category = state.categories[index];
+                    return Container(
+                          margin: const EdgeInsets.only(bottom: 8),
+                          decoration: BoxDecoration(
+                            color: Colors.grey[50],
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          child: ListTile(
+                            leading: Container(
+                              padding: const EdgeInsets.all(8),
+                              decoration: BoxDecoration(
+                                color: Colors.blue.withAlpha(30),
+                                borderRadius: BorderRadius.circular(8),
+                              ),
+                              child: const Icon(
+                                Icons.folder,
+                                color: Colors.blue,
+                              ),
+                            ),
+                            title: Text(
+                              category.name,
+                              style: const TextStyle(
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                            trailing: PopupMenuButton<String>(
+                              onSelected: (value) {
+                                if (value == 'edit') {
+                                  _showEditCategoryDialog(context, category);
+                                } else if (value == 'delete') {
+                                  _confirmDeleteCategory(context, category);
+                                }
+                              },
+                              itemBuilder: (context) => [
+                                const PopupMenuItem(
+                                  value: 'edit',
+                                  child: Text('Sửa tên'),
+                                ),
+                                const PopupMenuItem(
+                                  value: 'delete',
+                                  child: Text(
+                                    'Xóa',
+                                    style: TextStyle(color: Colors.red),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        )
+                        .animate(delay: Duration(milliseconds: 50 * index))
+                        .fadeIn()
+                        .slideX(begin: 0.1);
+                  },
+                );
+              },
+            ),
+          ),
+        ],
+      ),
     );
   }
 
@@ -797,10 +872,12 @@ class _CategoryManagementSheet extends StatelessWidget {
           ),
           FilledButton(
             onPressed: () {
-              Navigator.pop(context);
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(content: Text('Tính năng đang phát triển')),
-              );
+              if (controller.text.isNotEmpty) {
+                context.read<CategoryBloc>().add(
+                  CreateCategory(controller.text),
+                );
+                Navigator.pop(context);
+              }
             },
             child: const Text('Thêm'),
           ),
@@ -808,32 +885,280 @@ class _CategoryManagementSheet extends StatelessWidget {
       ),
     );
   }
+
+  void _showEditCategoryDialog(BuildContext context, CategoryEntity category) {
+    final controller = TextEditingController(text: category.name);
+    showDialog(
+      context: context,
+      builder: (_) => AlertDialog(
+        title: const Text('Sửa danh mục'),
+        content: TextField(
+          controller: controller,
+          autofocus: true,
+          decoration: InputDecoration(
+            labelText: 'Tên danh mục',
+            border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+            prefixIcon: const Icon(Icons.edit),
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Hủy'),
+          ),
+          FilledButton(
+            onPressed: () {
+              if (controller.text.isNotEmpty &&
+                  controller.text != category.name) {
+                context.read<CategoryBloc>().add(
+                  UpdateCategory(category.name, controller.text),
+                );
+                Navigator.pop(context);
+              }
+            },
+            child: const Text('Lưu'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _confirmDeleteCategory(BuildContext context, CategoryEntity category) {
+    showDialog(
+      context: context,
+      builder: (_) => AlertDialog(
+        title: const Text('Xác nhận xóa'),
+        content: Text('Bạn có chắc muốn xóa danh mục "${category.name}"?'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Hủy'),
+          ),
+          FilledButton(
+            style: FilledButton.styleFrom(backgroundColor: Colors.red),
+            onPressed: () {
+              context.read<CategoryBloc>().add(DeleteCategory(category.name));
+              Navigator.pop(context);
+            },
+            child: const Text('Xóa'),
+          ),
+        ],
+      ),
+    );
+  }
 }
 
-class _UnitChip extends StatelessWidget {
-  final String label;
-  final String fullName;
+class _UnitManagementSheet extends StatelessWidget {
+  final ScrollController scrollController;
 
-  const _UnitChip({required this.label, required this.fullName});
+  const _UnitManagementSheet({required this.scrollController});
 
   @override
   Widget build(BuildContext context) {
-    return Tooltip(
-      message: fullName,
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-        decoration: BoxDecoration(
-          color: Colors.green.withAlpha(20),
-          borderRadius: BorderRadius.circular(20),
-          border: Border.all(color: Colors.green.withAlpha(50)),
-        ),
-        child: Text(
-          label,
-          style: const TextStyle(
-            color: Colors.green,
-            fontWeight: FontWeight.w600,
+    return BlocListener<UnitBloc, UnitState>(
+      listener: (context, state) {
+        if (state.errorMessage != null) {
+          ScaffoldMessenger.of(
+            context,
+          ).showSnackBar(SnackBar(content: Text(state.errorMessage!)));
+        }
+      },
+      child: Column(
+        children: [
+          const SizedBox(height: 12),
+          Container(
+            width: 40,
+            height: 4,
+            decoration: BoxDecoration(
+              color: Colors.grey[300],
+              borderRadius: BorderRadius.circular(2),
+            ),
+          ),
+          Padding(
+            padding: const EdgeInsets.all(16),
+            child: Row(
+              children: [
+                const Expanded(
+                  child: Text(
+                    'Đơn vị đo lường',
+                    style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+                  ),
+                ),
+                FilledButton.icon(
+                  onPressed: () => _showAddUnitDialog(context),
+                  icon: const Icon(Icons.add),
+                  label: const Text('Thêm'),
+                ),
+              ],
+            ),
+          ),
+          const Divider(height: 1),
+          Expanded(
+            child: BlocBuilder<UnitBloc, UnitState>(
+              builder: (context, state) {
+                if (state.status == UnitStatus.loading && state.units.isEmpty) {
+                  return const Center(child: CircularProgressIndicator());
+                }
+
+                if (state.units.isEmpty) {
+                  return const Center(child: Text('Chưa có đơn vị nào'));
+                }
+
+                return ListView.builder(
+                  controller: scrollController,
+                  padding: const EdgeInsets.all(16),
+                  itemCount: state.units.length,
+                  itemBuilder: (context, index) {
+                    final unit = state.units[index];
+                    return Container(
+                          margin: const EdgeInsets.only(bottom: 8),
+                          decoration: BoxDecoration(
+                            color: Colors.grey[50],
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          child: ListTile(
+                            leading: Container(
+                              padding: const EdgeInsets.all(8),
+                              decoration: BoxDecoration(
+                                color: Colors.green.withAlpha(30),
+                                borderRadius: BorderRadius.circular(8),
+                              ),
+                              child: const Icon(
+                                Icons.straighten,
+                                color: Colors.green,
+                              ),
+                            ),
+                            title: Text(
+                              unit.name,
+                              style: const TextStyle(
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                            trailing: PopupMenuButton<String>(
+                              onSelected: (value) {
+                                if (value == 'edit') {
+                                  _showEditUnitDialog(context, unit);
+                                } else if (value == 'delete') {
+                                  _confirmDeleteUnit(context, unit);
+                                }
+                              },
+                              itemBuilder: (context) => [
+                                const PopupMenuItem(
+                                  value: 'edit',
+                                  child: Text('Sửa tên'),
+                                ),
+                                const PopupMenuItem(
+                                  value: 'delete',
+                                  child: Text(
+                                    'Xóa',
+                                    style: TextStyle(color: Colors.red),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        )
+                        .animate(delay: Duration(milliseconds: 50 * index))
+                        .fadeIn()
+                        .slideX(begin: 0.1);
+                  },
+                );
+              },
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _showAddUnitDialog(BuildContext context) {
+    final controller = TextEditingController();
+    showDialog(
+      context: context,
+      builder: (_) => AlertDialog(
+        title: const Text('Thêm đơn vị'),
+        content: TextField(
+          controller: controller,
+          autofocus: true,
+          decoration: InputDecoration(
+            labelText: 'Tên đơn vị',
+            border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
           ),
         ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Hủy'),
+          ),
+          FilledButton(
+            onPressed: () {
+              if (controller.text.isNotEmpty) {
+                context.read<UnitBloc>().add(CreateUnit(controller.text));
+                Navigator.pop(context);
+              }
+            },
+            child: const Text('Thêm'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _showEditUnitDialog(BuildContext context, UnitEntity unit) {
+    final controller = TextEditingController(text: unit.name);
+    showDialog(
+      context: context,
+      builder: (_) => AlertDialog(
+        title: const Text('Sửa đơn vị'),
+        content: TextField(
+          controller: controller,
+          autofocus: true,
+          decoration: InputDecoration(
+            labelText: 'Tên đơn vị',
+            border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Hủy'),
+          ),
+          FilledButton(
+            onPressed: () {
+              if (controller.text.isNotEmpty && controller.text != unit.name) {
+                context.read<UnitBloc>().add(
+                  UpdateUnit(unit.name, controller.text),
+                );
+                Navigator.pop(context);
+              }
+            },
+            child: const Text('Lưu'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _confirmDeleteUnit(BuildContext context, UnitEntity unit) {
+    showDialog(
+      context: context,
+      builder: (_) => AlertDialog(
+        title: const Text('Xác nhận xóa'),
+        content: Text('Bạn có chắc muốn xóa đơn vị "${unit.name}"?'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Hủy'),
+          ),
+          FilledButton(
+            style: FilledButton.styleFrom(backgroundColor: Colors.red),
+            onPressed: () {
+              context.read<UnitBloc>().add(DeleteUnit(unit.name));
+              Navigator.pop(context);
+            },
+            child: const Text('Xóa'),
+          ),
+        ],
       ),
     );
   }

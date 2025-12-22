@@ -7,6 +7,7 @@ abstract class AdminRemoteDataSource {
   Future<SystemStatsModel> getSystemStats();
   Future<List<UserModel>> getUsers(int page, int size);
   Future<void> updateUserRole(int userId, String role);
+  Future<void> deleteUser(int userId);
 }
 
 @LazySingleton(as: AdminRemoteDataSource)
@@ -41,5 +42,10 @@ class AdminRemoteDataSourceImpl implements AdminRemoteDataSource {
   @override
   Future<void> updateUserRole(int userId, String role) async {
     await _dio.put('/admin/users/$userId/role', data: {'role': role});
+  }
+
+  @override
+  Future<void> deleteUser(int userId) async {
+    await _dio.delete('/user/admin/$userId');
   }
 }

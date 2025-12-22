@@ -23,6 +23,22 @@ class CreateList extends ShoppingEvent {
   List<Object?> get props => [name, note, groupId];
 }
 
+class UpdateList extends ShoppingEvent {
+  final int listId;
+  final String name;
+  final String? note;
+  const UpdateList(this.listId, this.name, this.note);
+  @override
+  List<Object?> get props => [listId, name, note];
+}
+
+class DeleteList extends ShoppingEvent {
+  final int listId;
+  const DeleteList(this.listId);
+  @override
+  List<Object?> get props => [listId];
+}
+
 class AddShoppingTask extends ShoppingEvent {
   final int listId;
   final String foodName;

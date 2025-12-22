@@ -34,6 +34,34 @@ class CreateShoppingListParams extends Equatable {
 }
 
 @lazySingleton
+class UpdateShoppingListUseCase
+    extends UseCase<void, UpdateShoppingListParams> {
+  final ShoppingRepository repository;
+  UpdateShoppingListUseCase(this.repository);
+  @override
+  Future<Either<Failure, void>> call(UpdateShoppingListParams params) =>
+      repository.updateShoppingList(params.listId, params.name, params.note);
+}
+
+class UpdateShoppingListParams extends Equatable {
+  final int listId;
+  final String name;
+  final String? note;
+  const UpdateShoppingListParams(this.listId, this.name, this.note);
+  @override
+  List<Object?> get props => [listId, name, note];
+}
+
+@lazySingleton
+class DeleteShoppingListUseCase extends UseCase<void, int> {
+  final ShoppingRepository repository;
+  DeleteShoppingListUseCase(this.repository);
+  @override
+  Future<Either<Failure, void>> call(int listId) =>
+      repository.deleteShoppingList(listId);
+}
+
+@lazySingleton
 class AddShoppingTaskUseCase extends UseCase<void, AddShoppingTaskParams> {
   final ShoppingRepository repository;
   AddShoppingTaskUseCase(this.repository);

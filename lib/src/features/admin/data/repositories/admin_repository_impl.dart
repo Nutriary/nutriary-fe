@@ -51,4 +51,14 @@ class AdminRepositoryImpl implements AdminRepository {
       return Left(ServerFailure(e.message ?? 'Failed to update role'));
     }
   }
+
+  @override
+  Future<Either<Failure, void>> deleteUser(int userId) async {
+    try {
+      await remoteDataSource.deleteUser(userId);
+      return const Right(null);
+    } on DioException catch (e) {
+      return Left(ServerFailure(e.message ?? 'Failed to delete user'));
+    }
+  }
 }

@@ -333,6 +333,12 @@ class _HomeScreenState extends State<HomeScreen> {
                                 });
                               },
                             ),
+                            if (group.shoppingLists.length > 3)
+                              TextButton(
+                                onPressed: () =>
+                                    context.push('/tabs/home/shopping-lists'),
+                                child: const Text('Xem tất cả'),
+                              ),
                           ],
                         ),
                       ),
@@ -344,9 +350,19 @@ class _HomeScreenState extends State<HomeScreen> {
                           child: Text('Chưa có danh sách nào. Hãy tạo mới!'),
                         )
                       else
-                        ...group.shoppingLists.map((list) {
+                        ...group.shoppingLists.take(3).map((list) {
                           return _buildShoppingListTile(context, list);
                         }),
+
+                      if (group.shoppingLists.length > 3)
+                        Padding(
+                          padding: const EdgeInsets.symmetric(horizontal: 16.0),
+                          child: OutlinedButton(
+                            onPressed: () =>
+                                context.push('/tabs/home/shopping-lists'),
+                            child: const Text('Xem thêm danh sách'),
+                          ),
+                        ),
 
                       const SizedBox(height: 80),
                     ]),

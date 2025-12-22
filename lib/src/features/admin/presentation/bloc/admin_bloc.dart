@@ -4,6 +4,7 @@ import '../../../../core/usecase/usecase.dart';
 import '../../domain/usecases/get_system_stats_usecase.dart';
 import '../../domain/usecases/get_admin_users_usecase.dart';
 import '../../domain/usecases/update_user_role_usecase.dart';
+import '../../domain/usecases/delete_user_by_admin_usecase.dart';
 import 'admin_event.dart';
 import 'admin_state.dart';
 
@@ -12,15 +13,18 @@ class AdminBloc extends Bloc<AdminEvent, AdminState> {
   final GetSystemStatsUseCase getSystemStatsUseCase;
   final GetAdminUsersUseCase getAdminUsersUseCase;
   final UpdateUserRoleUseCase updateUserRoleUseCase;
+  final DeleteUserByAdminUseCase deleteUserByAdminUseCase;
 
   AdminBloc(
     this.getSystemStatsUseCase,
     this.getAdminUsersUseCase,
     this.updateUserRoleUseCase,
+    this.deleteUserByAdminUseCase,
   ) : super(const AdminState()) {
     on<LoadAdminStats>(_onLoadStats);
     on<LoadAdminUsers>(_onLoadUsers);
     on<UpdateUserRole>(_onUpdateUserRole);
+    on<DeleteUser>(_onDeleteUser);
   }
 
   Future<void> _onLoadStats(
@@ -69,22 +73,38 @@ class AdminBloc extends Bloc<AdminEvent, AdminState> {
     UpdateUserRole event,
     Emitter<AdminState> emit,
   ) async {
-    // Optimistic Update? Or Loading?
-    // Simple: Loading -> Success -> Refresh List
-    emit(state.copyWith(status: AdminStatus.loading));
+    emit(state.copyWith(isLoadingAction: true, errorMessage: null));
     final result = await updateUserRoleUseCase(
       UpdateUserRoleParams(userId: event.userId, role: event.role),
     );
     result.fold(
       (failure) => emit(
-        state.copyWith(
-          status: AdminStatus.failure,
-          errorMessage: failure.message,
-        ),
+        state.copyWith(isLoadingAction: false, errorMessage: failure.message),
       ),
       (_) {
-        // Refresh users list
-        add(const LoadAdminUsers());
+        final updatedUsers = state.users.map((u) {
+          if (u.id == event.userId) {
+            return u.copyWith(role: event.role);
+          }
+          return u;
+        }).toList();
+        emit(state.copyWith(isLoadingAction: false, users: updatedUsers));
+      },
+    );
+  }
+
+  Future<void> _onDeleteUser(DeleteUser event, Emitter<AdminState> emit) async {
+    emit(state.copyWith(isLoadingAction: true, errorMessage: null));
+    final result = await deleteUserByAdminUseCase(event.userId);
+    result.fold(
+      (failure) => emit(
+        state.copyWith(isLoadingAction: false, errorMessage: failure.message),
+      ),
+      (_) {
+        final updatedUsers = state.users
+            .where((u) => u.id != event.userId)
+            .toList();
+        emit(state.copyWith(isLoadingAction: false, users: updatedUsers));
       },
     );
   }

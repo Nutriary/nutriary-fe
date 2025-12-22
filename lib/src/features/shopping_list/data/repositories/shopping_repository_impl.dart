@@ -11,6 +11,8 @@ import '../models/shopping_task_model.dart';
 abstract class ShoppingRemoteDataSource {
   Future<List<ShoppingListModel>> getShoppingLists(int? groupId);
   Future<void> createShoppingList(String name, String? note, int? groupId);
+  Future<void> updateShoppingList(int listId, String name, String? note);
+  Future<void> deleteShoppingList(int listId);
   Future<List<ShoppingTaskModel>> getTasks(int listId);
   Future<void> addTask(int listId, String foodName, String quantity);
   Future<void> updateTask(int taskId, bool? isBought, String? quantity);
@@ -47,6 +49,19 @@ class ShoppingRemoteDataSourceImpl implements ShoppingRemoteDataSource {
         if (groupId != null) 'groupId': groupId,
       },
     );
+  }
+
+  @override
+  Future<void> updateShoppingList(int listId, String name, String? note) async {
+    await _dio.put(
+      '/shopping',
+      data: {'id': listId, 'name': name, 'note': note},
+    );
+  }
+
+  @override
+  Future<void> deleteShoppingList(int listId) async {
+    await _dio.delete('/shopping', data: {'listId': listId});
   }
 
   @override
@@ -142,6 +157,40 @@ class ShoppingRepositoryImpl implements ShoppingRepository {
       if (e is DioException) {
         return Left(
           ServerFailure(e.response?.data['message'] ?? 'Failed to create list'),
+        );
+      }
+      return Left(ServerFailure(e.toString()));
+    }
+  }
+
+  @override
+  Future<Either<Failure, void>> updateShoppingList(
+    int listId,
+    String name,
+    String? note,
+  ) async {
+    try {
+      await _dataSource.updateShoppingList(listId, name, note);
+      return const Right(null);
+    } catch (e) {
+      if (e is DioException) {
+        return Left(
+          ServerFailure(e.response?.data['message'] ?? 'Failed to update list'),
+        );
+      }
+      return Left(ServerFailure(e.toString()));
+    }
+  }
+
+  @override
+  Future<Either<Failure, void>> deleteShoppingList(int listId) async {
+    try {
+      await _dataSource.deleteShoppingList(listId);
+      return const Right(null);
+    } catch (e) {
+      if (e is DioException) {
+        return Left(
+          ServerFailure(e.response?.data['message'] ?? 'Failed to delete list'),
         );
       }
       return Left(ServerFailure(e.toString()));

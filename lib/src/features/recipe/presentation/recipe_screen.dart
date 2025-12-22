@@ -18,6 +18,25 @@ class RecipeListScreen extends StatefulWidget {
 
 class _RecipeListScreenState extends State<RecipeListScreen> {
   String _searchQuery = '';
+  String _filterType = 'all'; // all, public, group
+
+  Widget _buildFilterChip(String label, String value) {
+    final isSelected = _filterType == value;
+    return ChoiceChip(
+      label: Text(label),
+      selected: isSelected,
+      onSelected: (bool selected) {
+        setState(() {
+          _filterType = value;
+        });
+      },
+      selectedColor: Colors.orange.shade100,
+      labelStyle: TextStyle(
+        color: isSelected ? Colors.deepOrange : Colors.black,
+        fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+      ),
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -53,6 +72,22 @@ class _RecipeListScreenState extends State<RecipeListScreen> {
               ),
             ),
           ),
+          // Filter Section
+          Container(
+            height: 50,
+            padding: const EdgeInsets.symmetric(horizontal: 16),
+            child: ListView(
+              scrollDirection: Axis.horizontal,
+              children: [
+                _buildFilterChip('Tất cả', 'all'),
+                const SizedBox(width: 8),
+                _buildFilterChip('Công khai', 'public'),
+                const SizedBox(width: 8),
+                _buildFilterChip('Nhóm của tôi', 'group'),
+              ],
+            ),
+          ),
+          const SizedBox(height: 8),
           Expanded(
             child: BlocBuilder<RecipeBloc, RecipeState>(
               builder: (context, state) {
@@ -70,10 +105,23 @@ class _RecipeListScreenState extends State<RecipeListScreen> {
 
                 // Client-side filtering
                 final filtered = state.recipes.where((r) {
-                  final name = r.name.toLowerCase();
-                  final foodName = (r.foodName ?? '').toLowerCase();
+                  // Search Query
                   final query = _searchQuery.toLowerCase();
-                  return name.contains(query) || foodName.contains(query);
+                  final matchesSearch =
+                      r.name.toLowerCase().contains(query) ||
+                      (r.foodName ?? '').toLowerCase().contains(query);
+                  if (!matchesSearch) return false;
+
+                  // Filter Type
+                  if (_filterType == 'public') return r.isPublic;
+                  if (_filterType == 'group') {
+                    final selectedGroupId = context
+                        .read<GroupBloc>()
+                        .state
+                        .selectedGroupId;
+                    return r.groupId == selectedGroupId;
+                  }
+                  return true;
                 }).toList();
 
                 if (filtered.isEmpty) {
@@ -350,7 +398,7 @@ class _AddRecipeDialogState extends State<_AddRecipeDialog> {
       _contentController.text = widget.recipe!.htmlContent ?? '';
       // Existing recipe editing - currently API doesn't fully support editing visibility easily in UI without more data
       // For now we keep edit simple or assume public.
-      _isPublic = widget.recipe!.isPublic ?? true;
+      _isPublic = widget.recipe!.isPublic;
       _selectedGroupId = widget.recipe!.groupId;
     }
   }

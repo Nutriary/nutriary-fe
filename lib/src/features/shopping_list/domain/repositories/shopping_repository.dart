@@ -13,6 +13,12 @@ abstract class ShoppingRepository {
     String? note,
     int? groupId,
   );
+  Future<Either<Failure, void>> updateShoppingList(
+    int listId,
+    String name,
+    String? note,
+  );
+  Future<Either<Failure, void>> deleteShoppingList(int listId);
 
   // Tasks
   Future<Either<Failure, List<ShoppingTask>>> getTasks(int listId);

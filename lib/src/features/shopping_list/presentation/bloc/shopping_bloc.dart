@@ -12,6 +12,8 @@ class ShoppingBloc extends Bloc<ShoppingEvent, ShoppingState> {
   final UpdateShoppingTaskUseCase updateShoppingTaskUseCase;
   final DeleteShoppingTaskUseCase deleteShoppingTaskUseCase;
   final ReorderShoppingTasksUseCase reorderShoppingTasksUseCase;
+  final UpdateShoppingListUseCase updateShoppingListUseCase;
+  final DeleteShoppingListUseCase deleteShoppingListUseCase;
 
   ShoppingBloc(
     this.getShoppingTasksUseCase,
@@ -20,9 +22,13 @@ class ShoppingBloc extends Bloc<ShoppingEvent, ShoppingState> {
     this.updateShoppingTaskUseCase,
     this.deleteShoppingTaskUseCase,
     this.reorderShoppingTasksUseCase,
+    this.updateShoppingListUseCase,
+    this.deleteShoppingListUseCase,
   ) : super(const ShoppingState()) {
     on<LoadShoppingTasks>(_onLoadTasks);
     on<CreateList>(_onCreateList);
+    on<UpdateList>(_onUpdateList);
+    on<DeleteList>(_onDeleteList);
     on<AddShoppingTask>(_onAddTask);
     on<UpdateShoppingTask>(_onUpdateTask);
     on<DeleteShoppingTask>(_onDeleteTask);
@@ -60,6 +66,36 @@ class ShoppingBloc extends Bloc<ShoppingEvent, ShoppingState> {
     final result = await createShoppingListUseCase(
       CreateShoppingListParams(event.name, event.note, event.groupId),
     );
+    result.fold(
+      (failure) => emit(
+        state.copyWith(isLoadingAction: false, errorMessage: failure.message),
+      ),
+      (_) => emit(state.copyWith(isLoadingAction: false)),
+    );
+  }
+
+  Future<void> _onUpdateList(
+    UpdateList event,
+    Emitter<ShoppingState> emit,
+  ) async {
+    emit(state.copyWith(isLoadingAction: true, errorMessage: null));
+    final result = await updateShoppingListUseCase(
+      UpdateShoppingListParams(event.listId, event.name, event.note),
+    );
+    result.fold(
+      (failure) => emit(
+        state.copyWith(isLoadingAction: false, errorMessage: failure.message),
+      ),
+      (_) => emit(state.copyWith(isLoadingAction: false)),
+    );
+  }
+
+  Future<void> _onDeleteList(
+    DeleteList event,
+    Emitter<ShoppingState> emit,
+  ) async {
+    emit(state.copyWith(isLoadingAction: true, errorMessage: null));
+    final result = await deleteShoppingListUseCase(event.listId);
     result.fold(
       (failure) => emit(
         state.copyWith(isLoadingAction: false, errorMessage: failure.message),

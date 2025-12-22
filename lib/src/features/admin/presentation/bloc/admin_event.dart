@@ -24,3 +24,10 @@ class UpdateUserRole extends AdminEvent {
   @override
   List<Object> get props => [userId, role];
 }
+
+class DeleteUser extends AdminEvent {
+  final int userId;
+  const DeleteUser(this.userId);
+  @override
+  List<Object> get props => [userId];
+}

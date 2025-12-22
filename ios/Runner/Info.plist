@@ -43,6 +43,12 @@
 	</array>
 	<key>CADisableMinimumFrameDurationOnPhone</key>
 	<true/>
+	<key>NSPhotoLibraryUsageDescription</key>
+	<string>Ứng dụng cần truy cập thư viện ảnh để cập nhật ảnh đại diện.</string>
+	<key>NSCameraUsageDescription</key>
+	<string>Ứng dụng cần truy cập camera để chụp ảnh đại diện.</string>
+	<key>NSMicrophoneUsageDescription</key>
+	<string>Ứng dụng cần truy cập microphone cho video.</string>
 	<key>UIApplicationSupportsIndirectInputEvents</key>
 	<true/>
 </dict>

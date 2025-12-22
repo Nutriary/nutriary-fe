@@ -9,12 +9,14 @@ class AdminState extends Equatable {
   final SystemStats? stats;
   final List<User> users;
   final String? errorMessage;
+  final bool isLoadingAction;
 
   const AdminState({
     this.status = AdminStatus.initial,
     this.stats,
     this.users = const [],
     this.errorMessage,
+    this.isLoadingAction = false,
   });
 
   AdminState copyWith({
@@ -22,15 +24,23 @@ class AdminState extends Equatable {
     SystemStats? stats,
     List<User>? users,
     String? errorMessage,
+    bool? isLoadingAction,
   }) {
     return AdminState(
       status: status ?? this.status,
       stats: stats ?? this.stats,
       users: users ?? this.users,
       errorMessage: errorMessage,
+      isLoadingAction: isLoadingAction ?? this.isLoadingAction,
     );
   }
 
   @override
-  List<Object?> get props => [status, stats, users, errorMessage];
+  List<Object?> get props => [
+    status,
+    stats,
+    users,
+    errorMessage,
+    isLoadingAction,
+  ];
 }
