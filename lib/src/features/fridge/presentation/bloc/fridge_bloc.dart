@@ -27,10 +27,18 @@ class FridgeBloc extends Bloc<FridgeEvent, FridgeState> {
     on<LoadFridgeItems>(_onLoadFridgeItems);
     on<LoadCategories>(_onLoadCategories);
     on<ChangeFilter>(_onChangeFilter);
+    on<SearchFridgeItems>(_onSearchFridgeItems);
     on<AddItem>(_onAddItem);
     on<UpdateItem>(_onUpdateItem);
     on<RemoveItem>(_onRemoveItem);
     on<ConsumeItem>(_onConsumeItem);
+  }
+
+  void _onSearchFridgeItems(
+    SearchFridgeItems event,
+    Emitter<FridgeState> emit,
+  ) {
+    emit(state.copyWith(searchQuery: event.query));
   }
 
   Future<void> _onLoadFridgeItems(
@@ -78,6 +86,7 @@ class FridgeBloc extends Bloc<FridgeEvent, FridgeState> {
         quantity: event.quantity,
         useWithin: event.useWithin,
         categoryName: event.categoryName,
+        unitName: event.unitName,
         groupId: event.groupId,
       ),
     );

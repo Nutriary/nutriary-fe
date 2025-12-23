@@ -8,6 +8,12 @@ import 'package:nutriary_fe/src/features/recipe/presentation/bloc/recipe_event.d
 import 'package:nutriary_fe/src/features/recipe/presentation/bloc/recipe_state.dart';
 import 'package:nutriary_fe/src/features/recipe/domain/entities/recipe.dart';
 import 'package:nutriary_fe/src/features/group/presentation/bloc/group_bloc.dart';
+import 'package:nutriary_fe/src/features/food/presentation/bloc/food_bloc.dart';
+import 'package:nutriary_fe/src/features/food/presentation/bloc/food_event.dart';
+import 'package:nutriary_fe/src/features/food/presentation/bloc/food_state.dart';
+import 'package:nutriary_fe/src/features/unit/presentation/bloc/unit_bloc.dart';
+import 'package:nutriary_fe/src/features/unit/presentation/bloc/unit_event.dart';
+import 'package:nutriary_fe/src/features/unit/presentation/bloc/unit_state.dart';
 
 class RecipeListScreen extends StatefulWidget {
   const RecipeListScreen({super.key});
@@ -178,9 +184,14 @@ class _RecipeListScreenState extends State<RecipeListScreen> {
       ),
       floatingActionButton: FloatingActionButton(
         onPressed: () {
-          showDialog(
+          showModalBottomSheet(
             context: context,
-            builder: (_) => const _AddRecipeDialog(),
+            isScrollControlled: true,
+            useSafeArea: true,
+            shape: const RoundedRectangleBorder(
+              borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+            ),
+            builder: (_) => const AddRecipeSheet(),
           );
         },
         child: const Icon(Icons.add),
@@ -327,9 +338,14 @@ class RecipeDetailScreen extends StatelessWidget {
           IconButton(
             icon: const Icon(Icons.edit),
             onPressed: () {
-              showDialog(
+              showModalBottomSheet(
                 context: context,
-                builder: (_) => _AddRecipeDialog(recipe: entity),
+                isScrollControlled: true,
+                useSafeArea: true,
+                shape: const RoundedRectangleBorder(
+                  borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+                ),
+                builder: (_) => AddRecipeSheet(recipe: entity),
               );
             },
           ),
@@ -373,18 +389,29 @@ class RecipeDetailScreen extends StatelessWidget {
   }
 }
 
-class _AddRecipeDialog extends StatefulWidget {
+class AddRecipeSheet extends StatefulWidget {
   final Recipe? recipe;
-  const _AddRecipeDialog({this.recipe});
+  // initialFoodName for creating from MealPlan flow
+  final String? initialFoodName;
+
+  const AddRecipeSheet({super.key, this.recipe, this.initialFoodName});
 
   @override
-  State<_AddRecipeDialog> createState() => _AddRecipeDialogState();
+  State<AddRecipeSheet> createState() => _AddRecipeSheetState();
 }
 
-class _AddRecipeDialogState extends State<_AddRecipeDialog> {
+class _AddRecipeSheetState extends State<AddRecipeSheet>
+    with SingleTickerProviderStateMixin {
+  late TabController _tabController;
   final _nameController = TextEditingController();
-  final _foodNameController = TextEditingController();
-  final _contentController = TextEditingController();
+
+  final _instructionController = TextEditingController();
+
+  final _ingNameController = TextEditingController();
+  final _ingQtyController = TextEditingController();
+  String? _ingUnit;
+
+  final List<Map<String, String>> _ingredients = [];
 
   bool _isPublic = true;
   int? _selectedGroupId;
@@ -392,31 +419,92 @@ class _AddRecipeDialogState extends State<_AddRecipeDialog> {
   @override
   void initState() {
     super.initState();
+    _tabController = TabController(length: 2, vsync: this);
+    context.read<FoodBloc>().add(LoadFoods());
+    context.read<UnitBloc>().add(LoadUnits());
+
     if (widget.recipe != null) {
       _nameController.text = widget.recipe!.name;
-      _foodNameController.text = widget.recipe!.foodName ?? '';
-      _contentController.text = widget.recipe!.htmlContent ?? '';
-      // Existing recipe editing - currently API doesn't fully support editing visibility easily in UI without more data
-      // For now we keep edit simple or assume public.
+
+      _instructionController.text = widget.recipe!.htmlContent ?? '';
       _isPublic = widget.recipe!.isPublic;
       _selectedGroupId = widget.recipe!.groupId;
+    } else if (widget.initialFoodName != null) {
+      _nameController.text = widget.initialFoodName!;
     }
+  }
+
+  @override
+  void dispose() {
+    _tabController.dispose();
+    _nameController.dispose();
+
+    _instructionController.dispose();
+    _ingNameController.dispose();
+    _ingQtyController.dispose();
+    super.dispose();
+  }
+
+  void _addIngredient() {
+    if (_ingNameController.text.isEmpty || _ingQtyController.text.isEmpty) {
+      return;
+    }
+    setState(() {
+      _ingredients.add({
+        'name': _ingNameController.text,
+        'qty': _ingQtyController.text,
+        'unit': _ingUnit ?? '',
+      });
+      _ingNameController.clear();
+      _ingQtyController.clear();
+      _ingUnit = null;
+    });
+  }
+
+  void _removeIngredient(int index) {
+    setState(() {
+      _ingredients.removeAt(index);
+    });
+  }
+
+  String _buildHtml() {
+    final buffer = StringBuffer();
+    if (_ingredients.isNotEmpty) {
+      buffer.write('<h3>Nguyên liệu</h3><ul>');
+      for (final ing in _ingredients) {
+        final unitStr = ing['unit']!.isNotEmpty ? ' ${ing['unit']}' : '';
+        buffer.write('<li>${ing['name']}: ${ing['qty']}$unitStr</li>');
+      }
+      buffer.write('</ul>');
+    }
+
+    final rawInst = _instructionController.text;
+    if (rawInst.isNotEmpty) {
+      if (_ingredients.isNotEmpty) {
+        buffer.write('<h3>Cách làm</h3>');
+      }
+      final pTags = rawInst
+          .split('\n')
+          .where((l) => l.trim().isNotEmpty)
+          .map((l) => '<p>${l.trim()}</p>')
+          .join('');
+      buffer.write(pTags);
+    }
+
+    return buffer.toString();
   }
 
   @override
   Widget build(BuildContext context) {
     final isEdit = widget.recipe != null;
-    final groups = context
-        .read<GroupBloc>()
-        .state
-        .groups; // Assuming joinedGroups or groups
+    final groups = context.read<GroupBloc>().state.groups;
 
     return BlocConsumer<RecipeBloc, RecipeState>(
       listenWhen: (prev, curr) =>
           (prev.isLoadingAction && !curr.isLoadingAction),
       listener: (context, state) {
         if (state.errorMessage == null && !state.isLoadingAction) {
-          Navigator.pop(context); // Close dialog on success
+          Navigator.pop(context);
         } else if (state.errorMessage != null) {
           ScaffoldMessenger.of(
             context,
@@ -424,128 +512,435 @@ class _AddRecipeDialogState extends State<_AddRecipeDialog> {
         }
       },
       builder: (context, state) {
-        return AlertDialog(
-          title: Text(isEdit ? 'Sửa công thức' : 'Thêm công thức'),
-          content: SingleChildScrollView(
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                TextField(
-                  controller: _foodNameController,
-                  decoration: const InputDecoration(
-                    labelText: 'Tên món ăn (gắn với thực phẩm)',
-                  ),
-                  enabled: !isEdit,
-                ),
-                TextField(
-                  controller: _nameController,
-                  decoration: const InputDecoration(labelText: 'Tên công thức'),
-                ),
-                TextField(
-                  controller: _contentController,
-                  decoration: const InputDecoration(
-                    labelText: 'Cách làm (Mỗi bước 1 dòng)',
-                    alignLabelWithHint: true,
-                    helperText: 'Nhập nội dung, xuống dòng để tách đoạn.',
-                  ),
-                  maxLines: 8,
-                  keyboardType: TextInputType.multiline,
-                ),
-                if (!isEdit) ...[
-                  const SizedBox(height: 16),
-                  SwitchListTile(
-                    title: const Text('Công khai (Mọi người đều thấy)'),
-                    value: _isPublic,
-                    onChanged: (val) {
-                      setState(() {
-                        _isPublic = val;
-                        if (_isPublic) _selectedGroupId = null;
-                      });
-                    },
-                    contentPadding: EdgeInsets.zero,
-                  ),
-                  if (!_isPublic)
-                    DropdownButtonFormField<int>(
-                      decoration: const InputDecoration(labelText: 'Chọn nhóm'),
-                      value: _selectedGroupId,
-                      items: groups.map((g) {
-                        return DropdownMenuItem(
-                          value: g.id,
-                          child: Text(g.name),
-                        );
-                      }).toList(),
-                      onChanged: (val) =>
-                          setState(() => _selectedGroupId = val),
-                      hint: const Text('Chọn nhóm để chia sẻ'),
-                    ),
-                ],
-              ],
-            ),
+        return Container(
+          padding: EdgeInsets.only(
+            top: 16,
+            bottom: MediaQuery.of(context).viewInsets.bottom,
           ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(context),
-              child: const Text('Huỷ'),
-            ),
-            FilledButton(
-              onPressed: state.isLoadingAction
-                  ? null
-                  : () {
-                      final raw = _contentController.text;
-                      if (raw.trim().isEmpty) {
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(
-                            content: Text('Vui lòng nhập cách làm'),
+          constraints: BoxConstraints(
+            maxHeight: MediaQuery.of(context).size.height * 0.9,
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Expanded(
+                child: NestedScrollView(
+                  headerSliverBuilder: (context, innerBoxIsScrolled) {
+                    return [
+                      SliverToBoxAdapter(
+                        child: Padding(
+                          padding: const EdgeInsets.symmetric(horizontal: 16.0),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.stretch,
+                            children: [
+                              Row(
+                                children: [
+                                  Text(
+                                    isEdit ? 'Sửa công thức' : 'Thêm công thức',
+                                    style: const TextStyle(
+                                      fontSize: 20,
+                                      fontWeight: FontWeight.bold,
+                                    ),
+                                  ),
+                                  const Spacer(),
+                                  IconButton(
+                                    icon: const Icon(Icons.close),
+                                    onPressed: () => Navigator.pop(context),
+                                  ),
+                                ],
+                              ),
+                              const Divider(height: 1),
+                              TextField(
+                                controller: _nameController,
+                                decoration: const InputDecoration(
+                                  labelText: 'Tiêu đề (VD: Gà rán giòn)',
+                                  prefixIcon: Icon(Icons.title, size: 20),
+                                  isDense: true,
+                                  border: OutlineInputBorder(),
+                                ),
+                              ),
+                              const SizedBox(height: 8),
+                            ],
                           ),
-                        );
-                        return;
-                      }
-                      final formattedHtml = raw
-                          .split('\n')
-                          .where((line) => line.trim().isNotEmpty)
-                          .map((line) => '<p>${line.trim()}</p>')
-                          .join('');
-
-                      if (isEdit) {
-                        context.read<RecipeBloc>().add(
-                          UpdateRecipe(
-                            id: widget.recipe!.id,
-                            name: _nameController.text,
-                            content: formattedHtml,
-                          ),
-                        );
-                      } else {
-                        if (!_isPublic && _selectedGroupId == null) {
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            const SnackBar(content: Text('Vui lòng chọn nhóm')),
-                          );
-                          return;
-                        }
-                        context.read<RecipeBloc>().add(
-                          CreateRecipe(
-                            name: _nameController.text,
-                            foodName: _foodNameController.text,
-                            content: formattedHtml,
-                            isPublic: _isPublic,
-                            groupId: _selectedGroupId,
-                          ),
-                        );
-                      }
-                    },
-              child: state.isLoadingAction
-                  ? const SizedBox(
-                      width: 20,
-                      height: 20,
-                      child: CircularProgressIndicator(
-                        strokeWidth: 2,
-                        color: Colors.white,
+                        ),
                       ),
-                    )
-                  : Text(isEdit ? 'Lưu' : 'Thêm'),
-            ),
-          ],
+                      SliverPersistentHeader(
+                        delegate: _SliverAppBarDelegate(
+                          TabBar(
+                            controller: _tabController,
+                            labelColor: Colors.deepOrange,
+                            unselectedLabelColor: Colors.grey[600],
+                            indicatorColor: Colors.deepOrange,
+                            tabs: const [
+                              Tab(icon: Icon(Icons.list), text: 'Nguyên liệu'),
+                              Tab(
+                                icon: Icon(Icons.menu_book),
+                                text: 'Cách làm',
+                              ),
+                            ],
+                          ),
+                        ),
+                        pinned: true,
+                      ),
+                    ];
+                  },
+                  body: TabBarView(
+                    controller: _tabController,
+                    children: [
+                      _buildIngredientsTab(),
+                      _buildInstructionsTab(groups, isEdit),
+                    ],
+                  ),
+                ),
+              ),
+              Padding(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 16.0,
+                  vertical: 8.0,
+                ),
+                child: Row(
+                  children: [
+                    Expanded(
+                      child: FilledButton(
+                        onPressed: state.isLoadingAction
+                            ? null
+                            : () {
+                                final content = _buildHtml();
+                                if (content.isEmpty) {
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                    const SnackBar(
+                                      content: Text('Vui lòng nhập nội dung'),
+                                    ),
+                                  );
+                                  return;
+                                }
+
+                                if (isEdit) {
+                                  context.read<RecipeBloc>().add(
+                                    UpdateRecipe(
+                                      id: widget.recipe!.id,
+                                      name: _nameController.text,
+                                      content: content,
+                                    ),
+                                  );
+                                } else {
+                                  if (!_isPublic && _selectedGroupId == null) {
+                                    ScaffoldMessenger.of(context).showSnackBar(
+                                      const SnackBar(
+                                        content: Text('Vui lòng chọn nhóm'),
+                                      ),
+                                    );
+                                    return;
+                                  }
+                                  context.read<RecipeBloc>().add(
+                                    CreateRecipe(
+                                      name: _nameController.text,
+                                      content: content,
+                                      ingredients: _ingredients,
+                                      isPublic: _isPublic,
+                                      groupId: _selectedGroupId,
+                                    ),
+                                  );
+                                }
+                              },
+                        child: state.isLoadingAction
+                            ? const SizedBox(
+                                width: 20,
+                                height: 20,
+                                child: CircularProgressIndicator(
+                                  color: Colors.white,
+                                  strokeWidth: 2,
+                                ),
+                              )
+                            : Text(isEdit ? 'Lưu Công Thức' : 'Tạo Công Thức'),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
         );
       },
     );
+  }
+
+  Widget _buildIngredientsTab() {
+    return Padding(
+      padding: const EdgeInsets.all(16.0),
+      child: Column(
+        children: [
+          Container(
+            padding: const EdgeInsets.all(12),
+            decoration: BoxDecoration(
+              color: Colors.grey[100],
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(color: Colors.grey[300]!),
+            ),
+            child: BlocBuilder<FoodBloc, FoodState>(
+              builder: (context, foodState) {
+                final foods = foodState.foods;
+                return Column(
+                  children: [
+                    Autocomplete<String>(
+                      optionsBuilder: (TextEditingValue textEditingValue) {
+                        if (textEditingValue.text.isEmpty)
+                          return const Iterable<String>.empty();
+                        final query = textEditingValue.text.toLowerCase();
+                        return foods
+                            .where((f) => f.name.toLowerCase().contains(query))
+                            .map((f) => f.name);
+                      },
+                      onSelected: (selection) {
+                        _ingNameController.text = selection;
+                        try {
+                          final f = foods.firstWhere(
+                            (x) => x.name == selection,
+                          );
+                          if (f.unit.isNotEmpty)
+                            setState(() => _ingUnit = f.unit);
+                        } catch (_) {}
+                      },
+                      fieldViewBuilder: (ctx, tec, fn, onSub) {
+                        if (_ingNameController.text != tec.text)
+                          tec.text = _ingNameController.text;
+                        return TextField(
+                          controller: tec,
+                          focusNode: fn,
+                          decoration: const InputDecoration(
+                            labelText: 'Tên nguyên liệu',
+                            hintText: 'Nhập tên thực phẩm...',
+                            border: OutlineInputBorder(),
+                            prefixIcon: Icon(Icons.search),
+                            isDense: true,
+                            filled: true,
+                            fillColor: Colors.white,
+                          ),
+                          onChanged: (v) => _ingNameController.text = v,
+                        );
+                      },
+                    ),
+                    const SizedBox(height: 8),
+                    Row(
+                      children: [
+                        Expanded(
+                          flex: 3,
+                          child: TextField(
+                            controller: _ingQtyController,
+                            decoration: const InputDecoration(
+                              labelText: 'Số lượng',
+                              border: OutlineInputBorder(),
+                              isDense: true,
+                              filled: true,
+                              fillColor: Colors.white,
+                            ),
+                            keyboardType: TextInputType.number,
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          flex: 3,
+                          child: BlocBuilder<UnitBloc, UnitState>(
+                            builder: (_, unitState) {
+                              var unitNames = unitState.units
+                                  .map((u) => u.name)
+                                  .toSet()
+                                  .toList();
+
+                              if (unitNames.isEmpty) {
+                                unitNames = [
+                                  'g',
+                                  'kg',
+                                  'ml',
+                                  'l',
+                                  'cái',
+                                  'quả',
+                                  'hộp',
+                                  'muỗng',
+                                  'thìa',
+                                ];
+                              }
+
+                              final items = unitNames
+                                  .map(
+                                    (n) => DropdownMenuItem(
+                                      value: n,
+                                      child: Text(n),
+                                    ),
+                                  )
+                                  .toList();
+                              return DropdownButtonFormField<String>(
+                                value:
+                                    _ingUnit != null &&
+                                        unitNames.contains(_ingUnit)
+                                    ? _ingUnit
+                                    : null,
+                                items: items,
+                                onChanged: (v) => setState(() => _ingUnit = v),
+                                decoration: const InputDecoration(
+                                  labelText: 'Đơn vị',
+                                  border: OutlineInputBorder(),
+                                  isDense: true,
+                                  filled: true,
+                                  fillColor: Colors.white,
+                                ),
+                              );
+                            },
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        ElevatedButton(
+                          onPressed: _addIngredient,
+                          style: ElevatedButton.styleFrom(
+                            shape: const CircleBorder(),
+                            padding: const EdgeInsets.all(12),
+                            backgroundColor: Colors.deepOrange,
+                            foregroundColor: Colors.white,
+                          ),
+                          child: const Icon(Icons.add),
+                        ),
+                      ],
+                    ),
+                  ],
+                );
+              },
+            ),
+          ),
+          const SizedBox(height: 16),
+          Expanded(
+            child: _ingredients.isEmpty
+                ? Center(
+                    child: Text(
+                      'Chưa có nguyên liệu nào',
+                      style: TextStyle(color: Colors.grey[500]),
+                    ),
+                  )
+                : ListView.separated(
+                    itemCount: _ingredients.length,
+                    separatorBuilder: (_, __) => const Divider(height: 1),
+                    itemBuilder: (context, index) {
+                      final item = _ingredients[index];
+                      return ListTile(
+                        contentPadding: EdgeInsets.zero,
+                        leading: CircleAvatar(
+                          backgroundColor: Colors.orange[100],
+                          child: Text(
+                            '${index + 1}',
+                            style: const TextStyle(color: Colors.deepOrange),
+                          ),
+                        ),
+                        title: Text(
+                          item['name']!,
+                          style: const TextStyle(fontWeight: FontWeight.bold),
+                        ),
+                        subtitle: Text('${item['qty']} ${item['unit']}'),
+                        trailing: IconButton(
+                          icon: const Icon(
+                            Icons.remove_circle_outline,
+                            color: Colors.red,
+                          ),
+                          onPressed: () => _removeIngredient(index),
+                        ),
+                      );
+                    },
+                  ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildInstructionsTab(List groups, bool isEdit) {
+    return SingleChildScrollView(
+      padding: const EdgeInsets.all(16),
+      child: Column(
+        children: [
+          TextField(
+            controller: _instructionController,
+            decoration: const InputDecoration(
+              labelText: 'Hướng dẫn thực hiện',
+              hintText: 'Bước 1: Sơ chế...\nBước 2: Nấu...',
+              border: OutlineInputBorder(),
+              alignLabelWithHint: true,
+            ),
+            maxLines: 12,
+            keyboardType: TextInputType.multiline,
+          ),
+          if (!isEdit) ...[
+            const SizedBox(height: 16),
+            Card(
+              elevation: 0,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(12),
+                side: BorderSide(color: Colors.grey.shade300),
+              ),
+              child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 8.0),
+                child: Column(
+                  children: [
+                    SwitchListTile(
+                      title: const Text('Công khai'),
+                      subtitle: const Text('Mọi người đều có thể xem'),
+                      value: _isPublic,
+                      activeColor: Colors.deepOrange,
+                      onChanged: (val) {
+                        setState(() {
+                          _isPublic = val;
+                          if (_isPublic) _selectedGroupId = null;
+                        });
+                      },
+                    ),
+                    if (!_isPublic)
+                      Padding(
+                        padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+                        child: DropdownButtonFormField<int>(
+                          decoration: const InputDecoration(
+                            labelText: 'Chọn nhóm',
+                            border: OutlineInputBorder(),
+                          ),
+                          value: _selectedGroupId,
+                          items: groups.map<DropdownMenuItem<int>>((g) {
+                            return DropdownMenuItem(
+                              value: g.id,
+                              child: Text(g.name),
+                            );
+                          }).toList(),
+                          onChanged: (val) =>
+                              setState(() => _selectedGroupId = val),
+                        ),
+                      ),
+                  ],
+                ),
+              ),
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+}
+
+class _SliverAppBarDelegate extends SliverPersistentHeaderDelegate {
+  final TabBar _tabBar;
+
+  _SliverAppBarDelegate(this._tabBar);
+
+  @override
+  double get minExtent => _tabBar.preferredSize.height;
+  @override
+  double get maxExtent => _tabBar.preferredSize.height;
+
+  @override
+  Widget build(
+    BuildContext context,
+    double shrinkOffset,
+    bool overlapsContent,
+  ) {
+    return Container(color: Colors.white, child: _tabBar);
+  }
+
+  @override
+  bool shouldRebuild(_SliverAppBarDelegate oldDelegate) {
+    return false;
   }
 }

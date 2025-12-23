@@ -13,6 +13,7 @@ abstract class FridgeRemoteDataSource {
     required String quantity,
     DateTime? useWithin,
     String? categoryName,
+    String? unitName,
     int? groupId,
   });
   Future<void> updateFridgeItem({
@@ -62,6 +63,7 @@ class FridgeRemoteDataSourceImpl implements FridgeRemoteDataSource {
     required String quantity,
     DateTime? useWithin,
     String? categoryName,
+    String? unitName,
     int? groupId,
   }) async {
     await _dio.post(
@@ -71,6 +73,7 @@ class FridgeRemoteDataSourceImpl implements FridgeRemoteDataSource {
         'quantity': num.tryParse(quantity) ?? 1,
         if (useWithin != null) 'useWithin': useWithin.toIso8601String(),
         if (categoryName != null) 'categoryName': categoryName,
+        if (unitName != null) 'unitName': unitName,
         if (groupId != null) 'groupId': groupId,
       },
     );
@@ -146,6 +149,7 @@ class FridgeRepositoryImpl implements FridgeRepository {
     required String quantity,
     DateTime? useWithin,
     String? categoryName,
+    String? unitName,
     int? groupId,
   }) async {
     try {
@@ -154,6 +158,7 @@ class FridgeRepositoryImpl implements FridgeRepository {
         quantity: quantity,
         useWithin: useWithin,
         categoryName: categoryName,
+        unitName: unitName,
         groupId: groupId,
       );
       return const Right(null);

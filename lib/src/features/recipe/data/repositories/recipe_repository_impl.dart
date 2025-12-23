@@ -10,8 +10,8 @@ abstract class RecipeRemoteDataSource {
   Future<List<RecipeModel>> getAllRecipes();
   Future<void> createRecipe(
     String name,
-    String foodName,
     String content, {
+    required List<Map<String, String>> ingredients,
     bool isPublic = true,
     int? groupId,
   });
@@ -42,16 +42,16 @@ class RecipeRemoteDataSourceImpl implements RecipeRemoteDataSource {
   @override
   Future<void> createRecipe(
     String name,
-    String foodName,
     String content, {
+    required List<Map<String, String>> ingredients,
     bool isPublic = true,
     int? groupId,
   }) async {
-    final body = {
+    final body = <String, dynamic>{
       'name': name,
-      'foodName': foodName,
       'htmlContent': content,
       'isPublic': isPublic,
+      'ingredients': ingredients,
     };
     if (groupId != null) {
       body['groupId'] = groupId;
@@ -108,16 +108,16 @@ class RecipeRepositoryImpl implements RecipeRepository {
   @override
   Future<Either<Failure, void>> createRecipe(
     String name,
-    String foodName,
     String content, {
+    required List<Map<String, String>> ingredients,
     bool isPublic = true,
     int? groupId,
   }) async {
     try {
       await _dataSource.createRecipe(
         name,
-        foodName,
         content,
+        ingredients: ingredients,
         isPublic: isPublic,
         groupId: groupId,
       );

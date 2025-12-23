@@ -7,6 +7,8 @@ import 'package:nutriary_fe/src/core/di/injection.dart';
 import 'bloc/statistics_bloc.dart';
 import 'bloc/statistics_event.dart';
 import 'bloc/statistics_state.dart';
+import '../../group/presentation/bloc/group_bloc.dart';
+import '../../group/presentation/bloc/group_state.dart';
 
 class StatisticsScreen extends StatefulWidget {
   const StatisticsScreen({super.key});
@@ -29,11 +31,25 @@ class _StatisticsScreenState extends State<StatisticsScreen>
     _loadData();
   }
 
-  void _loadData() {
+  void _loadData([int? groupId]) {
     final from = _dateRange?.start.toIso8601String().split('T').first;
     final to = _dateRange?.end.toIso8601String().split('T').first;
-    _bloc.add(LoadConsumptionStats(from: from, to: to));
-    _bloc.add(LoadShoppingStats(from: from, to: to));
+
+    // Try to get groupId from context if not provided
+    int? effectiveGroupId = groupId;
+    if (effectiveGroupId == null) {
+      try {
+        effectiveGroupId = context.read<GroupBloc>().state.selectedGroupId;
+      } catch (e) {
+        // GroupBloc might not be available in tests or some contexts
+        debugPrint('GroupBloc not found or error accessing state: $e');
+      }
+    }
+
+    _bloc.add(
+      LoadConsumptionStats(from: from, to: to, groupId: effectiveGroupId),
+    );
+    _bloc.add(LoadShoppingStats(from: from, to: to, groupId: effectiveGroupId));
   }
 
   Future<void> _selectDateRange() async {
@@ -64,62 +80,69 @@ class _StatisticsScreenState extends State<StatisticsScreen>
   Widget build(BuildContext context) {
     return BlocProvider.value(
       value: _bloc,
-      child: Scaffold(
-        appBar: AppBar(
-          title: const Text('Thống kê'),
-          actions: [
-            IconButton(
-              icon: const Icon(LucideIcons.calendar),
-              onPressed: _selectDateRange,
-              tooltip: 'Chọn khoảng thời gian',
+      child: BlocListener<GroupBloc, GroupState>(
+        listenWhen: (previous, current) =>
+            previous.selectedGroupId != current.selectedGroupId,
+        listener: (context, state) {
+          _loadData(state.selectedGroupId);
+        },
+        child: Scaffold(
+          appBar: AppBar(
+            title: const Text('Thống kê'),
+            actions: [
+              IconButton(
+                icon: const Icon(LucideIcons.calendar),
+                onPressed: _selectDateRange,
+                tooltip: 'Chọn khoảng thời gian',
+              ),
+            ],
+            bottom: TabBar(
+              controller: _tabController,
+              tabs: const [
+                Tab(icon: Icon(LucideIcons.pieChart), text: 'Tiêu thụ'),
+                Tab(icon: Icon(LucideIcons.shoppingCart), text: 'Mua sắm'),
+              ],
             ),
-          ],
-          bottom: TabBar(
-            controller: _tabController,
-            tabs: const [
-              Tab(icon: Icon(LucideIcons.pieChart), text: 'Tiêu thụ'),
-              Tab(icon: Icon(LucideIcons.shoppingCart), text: 'Mua sắm'),
+          ),
+          body: Column(
+            children: [
+              // Date range indicator
+              if (_dateRange != null)
+                Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 16,
+                    vertical: 8,
+                  ),
+                  color: Theme.of(
+                    context,
+                  ).colorScheme.primaryContainer.withAlpha(50),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      const Icon(LucideIcons.calendar, size: 16),
+                      const SizedBox(width: 8),
+                      Text(
+                        '${_formatDate(_dateRange!.start)} - ${_formatDate(_dateRange!.end)}',
+                        style: const TextStyle(fontWeight: FontWeight.w500),
+                      ),
+                      IconButton(
+                        icon: const Icon(Icons.close, size: 18),
+                        onPressed: () {
+                          setState(() => _dateRange = null);
+                          _loadData();
+                        },
+                      ),
+                    ],
+                  ),
+                ).animate().fadeIn(duration: 300.ms),
+              Expanded(
+                child: TabBarView(
+                  controller: _tabController,
+                  children: [_ConsumptionTab(), _ShoppingTab()],
+                ),
+              ),
             ],
           ),
-        ),
-        body: Column(
-          children: [
-            // Date range indicator
-            if (_dateRange != null)
-              Container(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 16,
-                  vertical: 8,
-                ),
-                color: Theme.of(
-                  context,
-                ).colorScheme.primaryContainer.withAlpha(50),
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    const Icon(LucideIcons.calendar, size: 16),
-                    const SizedBox(width: 8),
-                    Text(
-                      '${_formatDate(_dateRange!.start)} - ${_formatDate(_dateRange!.end)}',
-                      style: const TextStyle(fontWeight: FontWeight.w500),
-                    ),
-                    IconButton(
-                      icon: const Icon(Icons.close, size: 18),
-                      onPressed: () {
-                        setState(() => _dateRange = null);
-                        _loadData();
-                      },
-                    ),
-                  ],
-                ),
-              ).animate().fadeIn(duration: 300.ms),
-            Expanded(
-              child: TabBarView(
-                controller: _tabController,
-                children: [_ConsumptionTab(), _ShoppingTab()],
-              ),
-            ),
-          ],
         ),
       ),
     );

@@ -19,6 +19,10 @@ import 'package:nutriary_fe/src/features/user/presentation/bloc/user_bloc.dart';
 import 'package:nutriary_fe/src/features/user/presentation/bloc/user_event.dart';
 import 'package:nutriary_fe/src/features/settings/presentation/bloc/theme_bloc.dart';
 import 'package:nutriary_fe/src/features/settings/presentation/bloc/theme_event.dart';
+import 'package:nutriary_fe/src/features/food/presentation/bloc/food_bloc.dart';
+import 'package:nutriary_fe/src/features/food/presentation/bloc/food_event.dart';
+import 'package:nutriary_fe/src/features/unit/presentation/bloc/unit_bloc.dart';
+import 'package:nutriary_fe/src/features/unit/presentation/bloc/unit_event.dart';
 
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 
@@ -54,6 +58,8 @@ void main() async {
         BlocProvider(
           create: (_) => getIt<NotificationBloc>()..add(LoadNotifications()),
         ),
+        BlocProvider(create: (_) => getIt<FoodBloc>()..add(LoadFoods())),
+        BlocProvider(create: (_) => getIt<UnitBloc>()..add(LoadUnits())),
         BlocProvider(create: (_) => getIt<ThemeBloc>()..add(LoadTheme())),
         BlocProvider(create: (_) => getIt<UserBloc>()..add(LoadUserProfile())),
       ],

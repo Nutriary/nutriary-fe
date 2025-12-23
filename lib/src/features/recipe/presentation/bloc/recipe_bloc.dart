@@ -86,8 +86,8 @@ class RecipeBloc extends Bloc<RecipeEvent, RecipeState> {
     final result = await createRecipeUseCase(
       CreateRecipeParams(
         event.name,
-        event.foodName,
         event.content,
+        ingredients: event.ingredients,
         isPublic: event.isPublic,
         groupId: event.groupId,
       ),

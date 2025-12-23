@@ -22,8 +22,8 @@ class CreateRecipeUseCase extends UseCase<void, CreateRecipeParams> {
   Future<Either<Failure, void>> call(CreateRecipeParams params) =>
       repository.createRecipe(
         params.name,
-        params.foodName,
         params.content,
+        ingredients: params.ingredients,
         isPublic: params.isPublic,
         groupId: params.groupId,
       );
@@ -31,19 +31,19 @@ class CreateRecipeUseCase extends UseCase<void, CreateRecipeParams> {
 
 class CreateRecipeParams extends Equatable {
   final String name;
-  final String foodName;
   final String content;
+  final List<Map<String, String>> ingredients;
   final bool isPublic;
   final int? groupId;
   const CreateRecipeParams(
     this.name,
-    this.foodName,
     this.content, {
+    required this.ingredients,
     this.isPublic = true,
     this.groupId,
   });
   @override
-  List<Object?> get props => [name, foodName, content, isPublic, groupId];
+  List<Object?> get props => [name, content, ingredients, isPublic, groupId];
 }
 
 @lazySingleton

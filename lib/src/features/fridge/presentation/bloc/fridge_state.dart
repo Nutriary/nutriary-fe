@@ -10,6 +10,7 @@ class FridgeState extends Equatable {
   final List<FridgeItem> items;
   final List<String> categories;
   final FridgeFilter filter;
+  final String searchQuery;
   final String? errorMessage;
   final bool isLoadingAction;
 
@@ -20,12 +21,26 @@ class FridgeState extends Equatable {
     this.filter = FridgeFilter.all,
     this.errorMessage,
     this.isLoadingAction = false,
+    this.searchQuery = '',
   });
 
   // Getter for filtered items
   List<FridgeItem> get filteredItems {
-    if (filter == FridgeFilter.all) return items;
-    return items.where((item) {
+    var result = items;
+
+    // 1. Search filter
+    if (searchQuery.isNotEmpty) {
+      result = result
+          .where(
+            (item) =>
+                item.foodName.toLowerCase().contains(searchQuery.toLowerCase()),
+          )
+          .toList();
+    }
+
+    // 2. Status filter
+    if (filter == FridgeFilter.all) return result;
+    return result.where((item) {
       if (item.useWithin == null) return false;
       final daysLeft = item.useWithin!.difference(DateTime.now()).inDays;
       return daysLeft <= 3;
@@ -39,6 +54,7 @@ class FridgeState extends Equatable {
     FridgeFilter? filter,
     String? errorMessage,
     bool? isLoadingAction,
+    String? searchQuery,
   }) {
     return FridgeState(
       status: status ?? this.status,
@@ -47,6 +63,7 @@ class FridgeState extends Equatable {
       filter: filter ?? this.filter,
       errorMessage: errorMessage ?? this.errorMessage,
       isLoadingAction: isLoadingAction ?? this.isLoadingAction,
+      searchQuery: searchQuery ?? this.searchQuery,
     );
   }
 
@@ -58,5 +75,6 @@ class FridgeState extends Equatable {
     filter,
     errorMessage,
     isLoadingAction,
+    searchQuery,
   ];
 }

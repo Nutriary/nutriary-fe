@@ -6,9 +6,11 @@ abstract class StatisticsRepository {
   Future<Either<Failure, List<ConsumptionStat>>> getConsumptionStats(
     String? from,
     String? to,
+    int? groupId,
   );
   Future<Either<Failure, List<ShoppingStat>>> getShoppingStats(
     String? from,
     String? to,
+    int? groupId,
   );
 }

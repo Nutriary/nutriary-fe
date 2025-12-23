@@ -6,8 +6,8 @@ abstract class RecipeRepository {
   Future<Either<Failure, List<Recipe>>> getAllRecipes();
   Future<Either<Failure, void>> createRecipe(
     String name,
-    String foodName,
     String content, {
+    required List<Map<String, String>> ingredients,
     bool isPublic = true,
     int? groupId,
   });

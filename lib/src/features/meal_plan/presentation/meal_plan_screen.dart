@@ -6,6 +6,10 @@ import 'package:nutriary_fe/src/features/meal_plan/presentation/bloc/meal_plan_b
 import 'package:nutriary_fe/src/features/meal_plan/presentation/bloc/meal_plan_event.dart';
 import 'package:nutriary_fe/src/features/meal_plan/presentation/bloc/meal_plan_state.dart';
 import 'package:nutriary_fe/src/features/meal_plan/domain/entities/meal_plan.dart';
+import 'package:nutriary_fe/src/features/recipe/presentation/bloc/recipe_bloc.dart';
+import 'package:nutriary_fe/src/features/recipe/presentation/bloc/recipe_state.dart';
+import 'package:nutriary_fe/src/features/recipe/presentation/bloc/recipe_event.dart';
+import 'package:nutriary_fe/src/features/recipe/presentation/recipe_screen.dart'; // For AddRecipeDialog
 
 class MealPlanScreen extends StatefulWidget {
   const MealPlanScreen({super.key});
@@ -575,7 +579,15 @@ class _AddMealDialog extends StatefulWidget {
 class _AddMealDialogState extends State<_AddMealDialog> {
   final _foodController = TextEditingController();
   String _selectedType = 'Bữa Sáng';
+  int? _selectedRecipeId;
   final List<String> _types = ['Bữa Sáng', 'Bữa Trưa', 'Bữa Tối', 'Bữa Phụ'];
+
+  @override
+  void initState() {
+    super.initState();
+    // Load recipes for autocomplete
+    context.read<RecipeBloc>().add(LoadAllRecipes());
+  }
 
   void _add() {
     if (_foodController.text.isEmpty) return;
@@ -584,8 +596,26 @@ class _AddMealDialogState extends State<_AddMealDialog> {
         date: widget.date,
         mealType: _selectedType,
         foodName: _foodController.text,
+        recipeId: _selectedRecipeId,
       ),
     );
+  }
+
+  void _showCreateRecipeDialog(String initialName) {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      useSafeArea: true,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (_) => AddRecipeSheet(initialFoodName: initialName),
+    ).then((_) {
+      // After coming back, we might want to refresh recipe list?
+      // RecipeBloc handles refresh automatically if updated?
+      // We assume user added recipe successfully.
+      context.read<RecipeBloc>().add(LoadAllRecipes());
+    });
   }
 
   @override
@@ -619,14 +649,132 @@ class _AddMealDialogState extends State<_AddMealDialog> {
                 ),
               ),
               const SizedBox(height: 16),
-              TextField(
-                controller: _foodController,
-                decoration: const InputDecoration(
-                  labelText: 'Tên món',
-                  border: OutlineInputBorder(),
-                  prefixIcon: Icon(Icons.search),
-                  helperText: 'Nhập chính xác tên món ăn để tìm ảnh',
-                ),
+              BlocBuilder<RecipeBloc, RecipeState>(
+                builder: (context, recipeState) {
+                  final allRecipes = recipeState.recipes;
+
+                  return Autocomplete<String>(
+                    optionsBuilder: (TextEditingValue textEditingValue) {
+                      if (textEditingValue.text.isEmpty) {
+                        return const Iterable<String>.empty();
+                      }
+                      final query = textEditingValue.text.toLowerCase();
+
+                      // Filter recipes
+                      final matches = allRecipes
+                          .where(
+                            (r) =>
+                                r.name.toLowerCase().contains(query) ||
+                                (r.foodName ?? '').toLowerCase().contains(
+                                  query,
+                                ),
+                          )
+                          .map((r) => r.name)
+                          .toList();
+
+                      // If no exact match, we might want to allow "Build Recipe"
+                      // But Autocomplete expects String options.
+                      // We can add a special string or handle it in optionsView.
+                      if (!matches.contains(textEditingValue.text)) {
+                        // Just return matches. We handle creation via a separate button or logic
+                        // Or we can append a special "Create..." option
+                        return [
+                          ...matches,
+                          'CREATE_NEW_RECIPE_SPECIAL_KEY:${textEditingValue.text}',
+                        ];
+                      }
+
+                      return matches;
+                    },
+                    onSelected: (String selection) {
+                      if (selection.startsWith(
+                        'CREATE_NEW_RECIPE_SPECIAL_KEY:',
+                      )) {
+                        final newName = selection.split(':')[1];
+                        _foodController.text = newName;
+                        _showCreateRecipeDialog(newName);
+                      } else {
+                        _foodController.text = selection;
+                        final recipe = allRecipes.firstWhere(
+                          (r) => r.name == selection,
+                          orElse: () => allRecipes.first,
+                        );
+                        _selectedRecipeId = recipe.id;
+                      }
+                    },
+                    fieldViewBuilder:
+                        (
+                          context,
+                          textEditingController,
+                          focusNode,
+                          onFieldSubmitted,
+                        ) {
+                          // Sync with our _foodController
+                          if (_foodController.text !=
+                              textEditingController.text) {
+                            textEditingController.text = _foodController.text;
+                          }
+                          return TextField(
+                            controller: textEditingController,
+                            focusNode: focusNode,
+                            decoration: const InputDecoration(
+                              labelText: 'Tên món',
+                              border: OutlineInputBorder(),
+                              prefixIcon: Icon(Icons.search),
+                              helperText:
+                                  'Nhập tên để tìm công thức hoặc tạo mới',
+                            ),
+                            onChanged: (val) => _foodController.text = val,
+                          );
+                        },
+                    optionsViewBuilder: (context, onSelected, options) {
+                      return Align(
+                        alignment: Alignment.topLeft,
+                        child: Material(
+                          elevation: 4.0,
+                          child: Container(
+                            width: 300,
+                            constraints: const BoxConstraints(maxHeight: 200),
+                            color: Colors.white,
+                            child: ListView.builder(
+                              padding: EdgeInsets.zero,
+                              shrinkWrap: true,
+                              itemCount: options.length,
+                              itemBuilder: (BuildContext context, int index) {
+                                final option = options.elementAt(index);
+                                final isCreateOption = option.startsWith(
+                                  'CREATE_NEW_RECIPE_SPECIAL_KEY:',
+                                );
+                                final displayLabel = isCreateOption
+                                    ? 'Xây dựng công thức cho "${option.split(':')[1]}"'
+                                    : option;
+
+                                return ListTile(
+                                  leading: Icon(
+                                    isCreateOption
+                                        ? Icons.add_circle_outline
+                                        : Icons.restaurant_menu,
+                                  ),
+                                  title: Text(
+                                    displayLabel,
+                                    style: TextStyle(
+                                      color: isCreateOption
+                                          ? Colors.blue
+                                          : Colors.black,
+                                    ),
+                                  ),
+                                  onTap: () {
+                                    onSelected(option);
+                                  },
+                                );
+                              },
+                            ),
+                          ),
+                        ),
+                      );
+                    },
+                  );
+                },
               ),
             ],
           ),

@@ -10,8 +10,13 @@ abstract class StatisticsRemoteDataSource {
   Future<List<ConsumptionStatModel>> getConsumptionStats(
     String? from,
     String? to,
+    int? groupId,
   );
-  Future<List<ShoppingStatModel>> getShoppingStats(String? from, String? to);
+  Future<List<ShoppingStatModel>> getShoppingStats(
+    String? from,
+    String? to,
+    int? groupId,
+  );
 }
 
 @LazySingleton(as: StatisticsRemoteDataSource)
@@ -23,12 +28,14 @@ class StatisticsRemoteDataSourceImpl implements StatisticsRemoteDataSource {
   Future<List<ConsumptionStatModel>> getConsumptionStats(
     String? from,
     String? to,
+    int? groupId,
   ) async {
     final response = await _dio.get(
       '/statistics/consumption',
       queryParameters: {
         if (from != null) 'from': from,
         if (to != null) 'to': to,
+        if (groupId != null) 'groupId': groupId,
       },
     );
     final data = response.data;
@@ -42,12 +49,14 @@ class StatisticsRemoteDataSourceImpl implements StatisticsRemoteDataSource {
   Future<List<ShoppingStatModel>> getShoppingStats(
     String? from,
     String? to,
+    int? groupId,
   ) async {
     final response = await _dio.get(
       '/statistics/shopping',
       queryParameters: {
         if (from != null) 'from': from,
         if (to != null) 'to': to,
+        if (groupId != null) 'groupId': groupId,
       },
     );
     final data = response.data;
@@ -67,9 +76,10 @@ class StatisticsRepositoryImpl implements StatisticsRepository {
   Future<Either<Failure, List<ConsumptionStat>>> getConsumptionStats(
     String? from,
     String? to,
+    int? groupId,
   ) async {
     try {
-      final result = await _dataSource.getConsumptionStats(from, to);
+      final result = await _dataSource.getConsumptionStats(from, to, groupId);
       return Right(result);
     } on DioException catch (e) {
       return Left(
@@ -86,9 +96,10 @@ class StatisticsRepositoryImpl implements StatisticsRepository {
   Future<Either<Failure, List<ShoppingStat>>> getShoppingStats(
     String? from,
     String? to,
+    int? groupId,
   ) async {
     try {
-      final result = await _dataSource.getShoppingStats(from, to);
+      final result = await _dataSource.getShoppingStats(from, to, groupId);
       return Right(result);
     } on DioException catch (e) {
       return Left(

@@ -9,6 +9,7 @@ abstract class FridgeRepository {
     required String quantity,
     DateTime? useWithin,
     String? categoryName,
+    String? unitName,
     int? groupId,
   });
   Future<Either<Failure, void>> updateFridgeItem({

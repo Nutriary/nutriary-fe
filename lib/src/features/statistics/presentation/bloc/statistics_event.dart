@@ -9,15 +9,17 @@ abstract class StatisticsEvent extends Equatable {
 class LoadConsumptionStats extends StatisticsEvent {
   final String? from;
   final String? to;
-  const LoadConsumptionStats({this.from, this.to});
+  final int? groupId;
+  const LoadConsumptionStats({this.from, this.to, this.groupId});
   @override
-  List<Object?> get props => [from, to];
+  List<Object?> get props => [from, to, groupId];
 }
 
 class LoadShoppingStats extends StatisticsEvent {
   final String? from;
   final String? to;
-  const LoadShoppingStats({this.from, this.to});
+  final int? groupId;
+  const LoadShoppingStats({this.from, this.to, this.groupId});
   @override
-  List<Object?> get props => [from, to];
+  List<Object?> get props => [from, to, groupId];
 }

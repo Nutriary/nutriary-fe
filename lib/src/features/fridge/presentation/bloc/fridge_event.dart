@@ -22,11 +22,19 @@ class ChangeFilter extends FridgeEvent {
   List<Object?> get props => [filter];
 }
 
+class SearchFridgeItems extends FridgeEvent {
+  final String query;
+  const SearchFridgeItems(this.query);
+  @override
+  List<Object?> get props => [query];
+}
+
 class AddItem extends FridgeEvent {
   final String foodName;
   final String quantity;
   final DateTime? useWithin;
   final String? categoryName;
+  final String? unitName;
   final int? groupId;
 
   const AddItem({
@@ -34,6 +42,7 @@ class AddItem extends FridgeEvent {
     required this.quantity,
     this.useWithin,
     this.categoryName,
+    this.unitName,
     this.groupId,
   });
   @override
@@ -42,6 +51,7 @@ class AddItem extends FridgeEvent {
     quantity,
     useWithin,
     categoryName,
+    unitName,
     groupId,
   ];
 }

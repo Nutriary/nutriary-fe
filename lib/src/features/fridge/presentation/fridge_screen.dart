@@ -8,6 +8,12 @@ import 'package:nutriary_fe/src/features/fridge/presentation/bloc/fridge_state.d
 import 'package:nutriary_fe/src/features/group/presentation/bloc/group_bloc.dart';
 import 'package:nutriary_fe/src/features/group/presentation/bloc/group_state.dart';
 import 'package:nutriary_fe/src/features/fridge/domain/entities/fridge_item.dart';
+import 'package:nutriary_fe/src/features/food/presentation/bloc/food_bloc.dart';
+import 'package:nutriary_fe/src/features/food/presentation/bloc/food_state.dart';
+import 'package:nutriary_fe/src/features/food/presentation/bloc/food_event.dart';
+import 'package:nutriary_fe/src/features/unit/presentation/bloc/unit_bloc.dart';
+import 'package:nutriary_fe/src/features/unit/presentation/bloc/unit_state.dart';
+import 'package:nutriary_fe/src/features/unit/presentation/bloc/unit_event.dart';
 import 'pages/fridge_detail_screen.dart';
 
 class FridgeScreen extends StatefulWidget {
@@ -50,28 +56,53 @@ class _FridgeScreenState extends State<FridgeScreen> {
             // Filter Chips
             Container(
               color: Colors.white,
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-              child: BlocBuilder<FridgeBloc, FridgeState>(
-                builder: (context, state) {
-                  return Row(
-                    children: [
-                      _buildFilterChip(
-                        context,
-                        'Tất cả',
-                        FridgeFilter.all,
-                        isSelected: state.filter == FridgeFilter.all,
+              padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
+              child: Column(
+                children: [
+                  // Search Bar
+                  TextField(
+                    decoration: InputDecoration(
+                      hintText: 'Tìm kiếm món ăn...',
+                      prefixIcon: const Icon(LucideIcons.search, size: 20),
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(30),
+                        borderSide: BorderSide.none,
                       ),
-                      const SizedBox(width: 8),
-                      _buildFilterChip(
-                        context,
-                        'Sắp hết hạn',
-                        FridgeFilter.expiring,
-                        isSelected: state.filter == FridgeFilter.expiring,
-                        color: Colors.redAccent,
+                      filled: true,
+                      fillColor: Colors.grey[100],
+                      contentPadding: const EdgeInsets.symmetric(
+                        horizontal: 20,
                       ),
-                    ],
-                  );
-                },
+                    ),
+                    onChanged: (value) {
+                      context.read<FridgeBloc>().add(SearchFridgeItems(value));
+                    },
+                  ),
+                  const SizedBox(height: 12),
+                  // Filter Chips
+                  BlocBuilder<FridgeBloc, FridgeState>(
+                    builder: (context, state) {
+                      return Row(
+                        children: [
+                          _buildFilterChip(
+                            context,
+                            'Tất cả',
+                            FridgeFilter.all,
+                            isSelected: state.filter == FridgeFilter.all,
+                          ),
+                          const SizedBox(width: 8),
+                          _buildFilterChip(
+                            context,
+                            'Sắp hết hạn',
+                            FridgeFilter.expiring,
+                            isSelected: state.filter == FridgeFilter.expiring,
+                            color: Colors.redAccent,
+                          ),
+                        ],
+                      );
+                    },
+                  ),
+                ],
               ),
             ),
 
@@ -375,6 +406,16 @@ class _AddFridgeItemDialogState extends State<_AddFridgeItemDialog> {
   final _qtyController = TextEditingController();
   DateTime? _selectedDate;
   String? _selectedCategory;
+  String? _selectedUnit;
+
+  @override
+  void initState() {
+    super.initState();
+    // Preload foods for suggestion
+    context.read<FoodBloc>().add(LoadFoods());
+    // Preload units
+    context.read<UnitBloc>().add(LoadUnits());
+  }
 
   Future<void> _add() async {
     if (_foodController.text.isEmpty) return;
@@ -386,6 +427,7 @@ class _AddFridgeItemDialogState extends State<_AddFridgeItemDialog> {
         quantity: _qtyController.text.isEmpty ? '1' : _qtyController.text,
         useWithin: _selectedDate,
         categoryName: _selectedCategory,
+        unitName: _selectedUnit,
         groupId: groupId,
       ),
     );
@@ -400,13 +442,119 @@ class _AddFridgeItemDialogState extends State<_AddFridgeItemDialog> {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            TextField(
-              controller: _foodController,
-              decoration: const InputDecoration(
-                labelText: 'Tên thực phẩm',
-                prefixIcon: Icon(Icons.search),
-                border: OutlineInputBorder(),
-              ),
+            BlocBuilder<FoodBloc, FoodState>(
+              builder: (context, foodState) {
+                final foods = foodState.foods;
+                return Autocomplete<String>(
+                  optionsBuilder: (TextEditingValue textEditingValue) {
+                    if (textEditingValue.text.isEmpty) {
+                      return const Iterable<String>.empty();
+                    }
+                    final query = textEditingValue.text.toLowerCase();
+                    return foods
+                        .where((f) => f.name.toLowerCase().contains(query))
+                        .map((f) => f.name);
+                  },
+                  onSelected: (String selection) {
+                    _foodController.text = selection;
+                    try {
+                      final food = foods.firstWhere((f) => f.name == selection);
+                      if (food.unit.isNotEmpty) {
+                        setState(() => _selectedUnit = food.unit);
+                      }
+                      if (food.category.isNotEmpty) {
+                        setState(() => _selectedCategory = food.category);
+                      }
+                    } catch (_) {}
+                  },
+                  fieldViewBuilder:
+                      (
+                        context,
+                        textEditingController,
+                        focusNode,
+                        onFieldSubmitted,
+                      ) {
+                        if (_foodController.text !=
+                            textEditingController.text) {
+                          textEditingController.text = _foodController.text;
+                        }
+                        return TextField(
+                          controller: textEditingController,
+                          focusNode: focusNode,
+                          decoration: InputDecoration(
+                            labelText: 'Tên thực phẩm',
+                            prefixIcon: const Icon(Icons.search),
+                            suffixIcon: foodState.status == FoodStatus.loading
+                                ? const SizedBox(
+                                    width: 20,
+                                    height: 20,
+                                    child: Padding(
+                                      padding: EdgeInsets.all(8.0),
+                                      child: CircularProgressIndicator(
+                                        strokeWidth: 2,
+                                      ),
+                                    ),
+                                  )
+                                : null,
+                            helperText: 'Nhập tên để tìm hoặc tạo mới',
+                            border: const OutlineInputBorder(),
+                          ),
+                          onChanged: (val) => _foodController.text = val,
+                        );
+                      },
+                  optionsViewBuilder: (context, onSelected, options) {
+                    return Align(
+                      alignment: Alignment.topLeft,
+                      child: Material(
+                        elevation: 4.0,
+                        child: Container(
+                          width: 300,
+                          constraints: const BoxConstraints(maxHeight: 200),
+                          color: Colors.white,
+                          child: ListView.builder(
+                            padding: EdgeInsets.zero,
+                            shrinkWrap: true,
+                            itemCount: options.length,
+                            itemBuilder: (BuildContext context, int index) {
+                              final option = options.elementAt(index);
+                              return ListTile(
+                                leading: const Icon(Icons.fastfood),
+                                title: Text(option),
+                                onTap: () {
+                                  onSelected(option);
+                                },
+                              );
+                            },
+                          ),
+                        ),
+                      ),
+                    );
+                  },
+                );
+              },
+            ),
+            const SizedBox(height: 12),
+            // Unit Dropdown
+            BlocBuilder<UnitBloc, UnitState>(
+              builder: (context, state) {
+                return DropdownButtonFormField<String>(
+                  value: _selectedUnit,
+                  decoration: const InputDecoration(
+                    labelText: 'Đơn vị',
+                    border: OutlineInputBorder(),
+                    prefixIcon: Icon(Icons.scale),
+                  ),
+                  items: state.units
+                      .map((u) => u.name)
+                      .toSet()
+                      .map(
+                        (name) =>
+                            DropdownMenuItem(value: name, child: Text(name)),
+                      )
+                      .toList(),
+                  onChanged: (v) => setState(() => _selectedUnit = v),
+                );
+              },
             ),
             const SizedBox(height: 12),
             // Category Dropdown

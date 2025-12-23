@@ -8,9 +8,10 @@ import '../repositories/statistics_repository.dart';
 class StatisticsParams extends Equatable {
   final String? from;
   final String? to;
-  const StatisticsParams({this.from, this.to});
+  final int? groupId;
+  const StatisticsParams({this.from, this.to, this.groupId});
   @override
-  List<Object?> get props => [from, to];
+  List<Object?> get props => [from, to, groupId];
 }
 
 @lazySingleton
@@ -22,7 +23,7 @@ class GetConsumptionStatsUseCase
   @override
   Future<Either<Failure, List<ConsumptionStat>>> call(
     StatisticsParams params,
-  ) => repository.getConsumptionStats(params.from, params.to);
+  ) => repository.getConsumptionStats(params.from, params.to, params.groupId);
 }
 
 @lazySingleton
@@ -33,5 +34,5 @@ class GetShoppingStatsUseCase
 
   @override
   Future<Either<Failure, List<ShoppingStat>>> call(StatisticsParams params) =>
-      repository.getShoppingStats(params.from, params.to);
+      repository.getShoppingStats(params.from, params.to, params.groupId);
 }

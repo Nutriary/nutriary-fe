@@ -21,7 +21,7 @@ class StatisticsBloc extends Bloc<StatisticsEvent, StatisticsState> {
   ) async {
     emit(state.copyWith(status: StatisticsStatus.loading));
     final result = await getConsumptionStatsUseCase(
-      StatisticsParams(from: event.from, to: event.to),
+      StatisticsParams(from: event.from, to: event.to, groupId: event.groupId),
     );
     result.fold(
       (failure) => emit(
@@ -45,7 +45,7 @@ class StatisticsBloc extends Bloc<StatisticsEvent, StatisticsState> {
   ) async {
     emit(state.copyWith(status: StatisticsStatus.loading));
     final result = await getShoppingStatsUseCase(
-      StatisticsParams(from: event.from, to: event.to),
+      StatisticsParams(from: event.from, to: event.to, groupId: event.groupId),
     );
     result.fold(
       (failure) => emit(

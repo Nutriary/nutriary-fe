@@ -16,6 +16,7 @@ class AddFridgeItemUseCase extends UseCase<void, AddFridgeItemParams> {
       quantity: params.quantity,
       useWithin: params.useWithin,
       categoryName: params.categoryName,
+      unitName: params.unitName,
       groupId: params.groupId,
     );
   }
@@ -26,6 +27,7 @@ class AddFridgeItemParams extends Equatable {
   final String quantity;
   final DateTime? useWithin;
   final String? categoryName;
+  final String? unitName;
   final int? groupId;
 
   const AddFridgeItemParams({
@@ -33,6 +35,7 @@ class AddFridgeItemParams extends Equatable {
     required this.quantity,
     this.useWithin,
     this.categoryName,
+    this.unitName,
     this.groupId,
   });
 
@@ -42,6 +45,7 @@ class AddFridgeItemParams extends Equatable {
     quantity,
     useWithin,
     categoryName,
+    unitName,
     groupId,
   ];
 }
