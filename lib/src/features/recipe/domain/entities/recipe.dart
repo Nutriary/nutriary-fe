@@ -1,5 +1,24 @@
 import 'package:equatable/equatable.dart';
 
+class RecipeIngredient extends Equatable {
+  final int? id;
+  final String name;
+  final double quantity;
+  final String unit;
+  final int? foodId;
+
+  const RecipeIngredient({
+    this.id,
+    required this.name,
+    required this.quantity,
+    required this.unit,
+    this.foodId,
+  });
+
+  @override
+  List<Object?> get props => [id, name, quantity, unit, foodId];
+}
+
 class Recipe extends Equatable {
   final int id;
   final String name;
@@ -12,6 +31,7 @@ class Recipe extends Equatable {
   final int? groupId;
   final String? groupName;
   final String? createdByName;
+  final List<RecipeIngredient> ingredients;
 
   const Recipe({
     required this.id,
@@ -25,6 +45,7 @@ class Recipe extends Equatable {
     this.groupId,
     this.groupName,
     this.createdByName,
+    this.ingredients = const [],
   });
 
   @override
@@ -40,5 +61,6 @@ class Recipe extends Equatable {
     groupId,
     groupName,
     createdByName,
+    ingredients,
   ];
 }

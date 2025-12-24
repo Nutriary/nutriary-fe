@@ -15,7 +15,12 @@ abstract class RecipeRemoteDataSource {
     bool isPublic = true,
     int? groupId,
   });
-  Future<void> updateRecipe(int id, {String? name, String? content});
+  Future<void> updateRecipe(
+    int id, {
+    String? name,
+    String? content,
+    List<Map<String, String>>? ingredients,
+  });
   Future<void> deleteRecipe(int id);
   Future<List<RecipeModel>> getRecipesByFood(int foodId);
 }
@@ -60,10 +65,16 @@ class RecipeRemoteDataSourceImpl implements RecipeRemoteDataSource {
   }
 
   @override
-  Future<void> updateRecipe(int id, {String? name, String? content}) async {
+  Future<void> updateRecipe(
+    int id, {
+    String? name,
+    String? content,
+    List<Map<String, String>>? ingredients,
+  }) async {
     final data = <String, dynamic>{'recipeId': id};
     if (name != null) data['newName'] = name;
     if (content != null) data['newHtmlContent'] = content;
+    if (ingredients != null) data['ingredients'] = ingredients;
     await _dio.put('/recipe', data: data);
   }
 
@@ -139,9 +150,15 @@ class RecipeRepositoryImpl implements RecipeRepository {
     int id, {
     String? name,
     String? content,
+    List<Map<String, String>>? ingredients,
   }) async {
     try {
-      await _dataSource.updateRecipe(id, name: name, content: content);
+      await _dataSource.updateRecipe(
+        id,
+        name: name,
+        content: content,
+        ingredients: ingredients,
+      );
       return const Right(null);
     } catch (e) {
       if (e is DioException) {

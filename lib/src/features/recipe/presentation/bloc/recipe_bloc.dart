@@ -113,6 +113,7 @@ class RecipeBloc extends Bloc<RecipeEvent, RecipeState> {
         id: event.id,
         name: event.name,
         content: event.content,
+        ingredients: event.ingredients,
       ),
     );
     result.fold(

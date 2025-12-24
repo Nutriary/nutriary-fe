@@ -36,11 +36,16 @@ void main() async {
   configureDependencies();
 
   try {
+    print("DEBUG: Starting Firebase initialization...");
     await Firebase.initializeApp();
+    print("DEBUG: Firebase initialized successfully");
     // Initialize push notifications
+    print("DEBUG: Starting PushNotificationService...");
     await getIt<PushNotificationService>().initialize();
-  } catch (e) {
+    print("DEBUG: PushNotificationService initialized successfully");
+  } catch (e, stackTrace) {
     print("Firebase/PushNotification init failed: $e");
+    print("StackTrace: $stackTrace");
   }
 
   runApp(

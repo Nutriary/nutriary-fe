@@ -416,6 +416,49 @@ class _AddRecipeSheetState extends State<AddRecipeSheet>
   bool _isPublic = true;
   int? _selectedGroupId;
 
+  /// Convert HTML content to plain text for editing (instructions only)
+  String _htmlToPlainText(String html) {
+    String text = html;
+
+    // Remove the entire ingredients section: <h3>Nguyên liệu</h3><ul>...</ul>
+    // This regex matches from "Nguyên liệu" header through the closing </ul>
+    text = text.replaceAll(
+      RegExp(
+        r'<h3>Nguyên liệu</h3>\s*<ul>.*?</ul>',
+        caseSensitive: false,
+        dotAll: true,
+      ),
+      '',
+    );
+
+    // Remove "Cách làm" header (it's auto-generated)
+    text = text.replaceAll(
+      RegExp(r'<h3>Cách làm</h3>', caseSensitive: false),
+      '',
+    );
+
+    // Replace <br> and <br/> with newlines
+    text = text.replaceAll(RegExp(r'<br\s*/?>'), '\n');
+
+    // Replace </p> with newlines
+    text = text.replaceAll(RegExp(r'</p>', caseSensitive: false), '\n');
+
+    // Remove all remaining HTML tags
+    text = text.replaceAll(RegExp(r'<[^>]+>'), '');
+
+    // Decode HTML entities
+    text = text.replaceAll('&nbsp;', ' ');
+    text = text.replaceAll('&amp;', '&');
+    text = text.replaceAll('&lt;', '<');
+    text = text.replaceAll('&gt;', '>');
+    text = text.replaceAll('&quot;', '"');
+
+    // Clean up multiple newlines
+    text = text.replaceAll(RegExp(r'\n{3,}'), '\n\n');
+
+    return text.trim();
+  }
+
   @override
   void initState() {
     super.initState();
@@ -426,9 +469,21 @@ class _AddRecipeSheetState extends State<AddRecipeSheet>
     if (widget.recipe != null) {
       _nameController.text = widget.recipe!.name;
 
-      _instructionController.text = widget.recipe!.htmlContent ?? '';
+      // Convert HTML to plain text for editing
+      _instructionController.text = _htmlToPlainText(
+        widget.recipe!.htmlContent ?? '',
+      );
       _isPublic = widget.recipe!.isPublic;
       _selectedGroupId = widget.recipe!.groupId;
+
+      // Load existing ingredients
+      for (final ing in widget.recipe!.ingredients) {
+        _ingredients.add({
+          'name': ing.name,
+          'qty': ing.quantity.toString(),
+          'unit': ing.unit,
+        });
+      }
     } else if (widget.initialFoodName != null) {
       _nameController.text = widget.initialFoodName!;
     }
@@ -504,7 +559,11 @@ class _AddRecipeSheetState extends State<AddRecipeSheet>
           (prev.isLoadingAction && !curr.isLoadingAction),
       listener: (context, state) {
         if (state.errorMessage == null && !state.isLoadingAction) {
-          Navigator.pop(context);
+          Navigator.pop(context); // Close modal
+          // If editing, also pop the detail screen to go back to refreshed list
+          if (widget.recipe != null) {
+            Navigator.pop(context); // Pop detail screen
+          }
         } else if (state.errorMessage != null) {
           ScaffoldMessenger.of(
             context,
@@ -621,6 +680,7 @@ class _AddRecipeSheetState extends State<AddRecipeSheet>
                                       id: widget.recipe!.id,
                                       name: _nameController.text,
                                       content: content,
+                                      ingredients: _ingredients,
                                     ),
                                   );
                                 } else {

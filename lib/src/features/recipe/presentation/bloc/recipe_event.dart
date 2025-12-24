@@ -36,9 +36,15 @@ class UpdateRecipe extends RecipeEvent {
   final int id;
   final String? name;
   final String? content;
-  const UpdateRecipe({required this.id, this.name, this.content});
+  final List<Map<String, String>>? ingredients;
+  const UpdateRecipe({
+    required this.id,
+    this.name,
+    this.content,
+    this.ingredients,
+  });
   @override
-  List<Object?> get props => [id, name, content];
+  List<Object?> get props => [id, name, content, ingredients];
 }
 
 class DeleteRecipe extends RecipeEvent {

@@ -51,17 +51,28 @@ class UpdateRecipeUseCase extends UseCase<void, UpdateRecipeParams> {
   final RecipeRepository repository;
   UpdateRecipeUseCase(this.repository);
   @override
-  Future<Either<Failure, void>> call(UpdateRecipeParams params) => repository
-      .updateRecipe(params.id, name: params.name, content: params.content);
+  Future<Either<Failure, void>> call(UpdateRecipeParams params) =>
+      repository.updateRecipe(
+        params.id,
+        name: params.name,
+        content: params.content,
+        ingredients: params.ingredients,
+      );
 }
 
 class UpdateRecipeParams extends Equatable {
   final int id;
   final String? name;
   final String? content;
-  const UpdateRecipeParams({required this.id, this.name, this.content});
+  final List<Map<String, String>>? ingredients;
+  const UpdateRecipeParams({
+    required this.id,
+    this.name,
+    this.content,
+    this.ingredients,
+  });
   @override
-  List<Object?> get props => [id, name, content];
+  List<Object?> get props => [id, name, content, ingredients];
 }
 
 @lazySingleton

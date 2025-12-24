@@ -15,6 +15,7 @@ abstract class RecipeRepository {
     int id, {
     String? name,
     String? content,
+    List<Map<String, String>>? ingredients,
   });
   Future<Either<Failure, void>> deleteRecipe(int id);
   Future<Either<Failure, List<Recipe>>> getRecipesByFood(int foodId);

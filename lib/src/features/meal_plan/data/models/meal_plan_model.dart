@@ -11,15 +11,16 @@ class MealPlanModel extends MealPlan {
   });
 
   factory MealPlanModel.fromJson(Map<String, dynamic> json) {
-    final food = json['food'];
+    final recipe = json['recipe'];
+
     return MealPlanModel(
       id: json['id'],
       mealType:
           json['name'] ??
           '', // API returns 'name' as meal type (e.g. Breakfast)
-      foodName: food != null ? food['name'] ?? '' : (json['foodName'] ?? ''),
-      foodImageUrl: food != null ? food['foodImageUrl'] : null,
-      recipeId: json['recipeId'],
+      foodName: recipe != null ? (recipe['name'] ?? 'Món ăn') : 'Món ăn',
+      foodImageUrl: null,
+      recipeId: recipe != null ? recipe['id'] : null,
       date: json['timestamp'] != null
           ? DateTime.tryParse(json['timestamp'])
           : null,
