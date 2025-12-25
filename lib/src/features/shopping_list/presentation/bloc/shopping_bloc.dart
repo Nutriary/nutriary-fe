@@ -33,6 +33,7 @@ class ShoppingBloc extends Bloc<ShoppingEvent, ShoppingState> {
     on<UpdateShoppingTask>(_onUpdateTask);
     on<DeleteShoppingTask>(_onDeleteTask);
     on<ReorderShoppingTasks>(_onReorderTasks);
+    on<AssignShoppingTask>(_onAssignTask);
   }
 
   Future<void> _onLoadTasks(
@@ -140,6 +141,7 @@ class ShoppingBloc extends Bloc<ShoppingEvent, ShoppingState> {
         taskId: event.taskId,
         isBought: event.isBought,
         quantity: event.quantity,
+        assigneeUserId: event.assigneeUserId,
       ),
     );
 
@@ -186,6 +188,23 @@ class ShoppingBloc extends Bloc<ShoppingEvent, ShoppingState> {
     result.fold(
       (failure) => emit(state.copyWith(errorMessage: failure.message)),
       (_) => null, // Success, state already updated optimistically
+    );
+  }
+
+  Future<void> _onAssignTask(
+    AssignShoppingTask event,
+    Emitter<ShoppingState> emit,
+  ) async {
+    final result = await updateShoppingTaskUseCase(
+      UpdateShoppingTaskParams(
+        taskId: event.taskId,
+        assigneeUserId: event.assigneeUserId,
+      ),
+    );
+
+    result.fold(
+      (failure) => emit(state.copyWith(errorMessage: failure.message)),
+      (_) => add(LoadShoppingTasks(event.listId)),
     );
   }
 }

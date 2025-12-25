@@ -15,7 +15,12 @@ abstract class ShoppingRemoteDataSource {
   Future<void> deleteShoppingList(int listId);
   Future<List<ShoppingTaskModel>> getTasks(int listId);
   Future<void> addTask(int listId, String foodName, String quantity);
-  Future<void> updateTask(int taskId, bool? isBought, String? quantity);
+  Future<void> updateTask(
+    int taskId,
+    bool? isBought,
+    String? quantity,
+    int? assigneeUserId,
+  );
   Future<void> deleteTask(int taskId);
   Future<void> reorderTasks(List<ShoppingTask> tasks);
 }
@@ -93,10 +98,16 @@ class ShoppingRemoteDataSourceImpl implements ShoppingRemoteDataSource {
   }
 
   @override
-  Future<void> updateTask(int taskId, bool? isBought, String? quantity) async {
+  Future<void> updateTask(
+    int taskId,
+    bool? isBought,
+    String? quantity,
+    int? assigneeUserId,
+  ) async {
     final data = <String, dynamic>{'taskId': taskId};
     if (isBought != null) data['isBought'] = isBought;
     if (quantity != null) data['newQuantity'] = quantity;
+    if (assigneeUserId != null) data['assigneeUserId'] = assigneeUserId;
 
     await _dio.put('/shopping/task', data: data);
   }
@@ -239,9 +250,10 @@ class ShoppingRepositoryImpl implements ShoppingRepository {
     required int taskId,
     bool? isBought,
     String? quantity,
+    int? assigneeUserId,
   }) async {
     try {
-      await _dataSource.updateTask(taskId, isBought, quantity);
+      await _dataSource.updateTask(taskId, isBought, quantity, assigneeUserId);
       return const Right(null);
     } catch (e) {
       if (e is DioException) {

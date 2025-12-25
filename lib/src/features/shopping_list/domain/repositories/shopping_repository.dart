@@ -31,6 +31,7 @@ abstract class ShoppingRepository {
     required int taskId,
     bool? isBought,
     String? quantity,
+    int? assigneeUserId,
   });
   Future<Either<Failure, void>> deleteTask(int taskId);
   Future<Either<Failure, void>> reorderTasks(List<ShoppingTask> tasks);

@@ -8,6 +8,10 @@ class ShoppingTask extends Equatable {
   final int orderIndex;
   final String? imageUrl;
   final int? foodId;
+  // Assignee info
+  final int? assigneeId;
+  final String? assigneeName;
+  final String? assigneeAvatarUrl;
 
   const ShoppingTask({
     required this.id,
@@ -17,6 +21,9 @@ class ShoppingTask extends Equatable {
     required this.orderIndex,
     this.imageUrl,
     this.foodId,
+    this.assigneeId,
+    this.assigneeName,
+    this.assigneeAvatarUrl,
   });
 
   @override
@@ -28,6 +35,9 @@ class ShoppingTask extends Equatable {
     orderIndex,
     imageUrl,
     foodId,
+    assigneeId,
+    assigneeName,
+    assigneeAvatarUrl,
   ];
 
   ShoppingTask copyWith({
@@ -38,6 +48,9 @@ class ShoppingTask extends Equatable {
     int? orderIndex,
     String? imageUrl,
     int? foodId,
+    int? assigneeId,
+    String? assigneeName,
+    String? assigneeAvatarUrl,
   }) {
     return ShoppingTask(
       id: id ?? this.id,
@@ -47,6 +60,9 @@ class ShoppingTask extends Equatable {
       orderIndex: orderIndex ?? this.orderIndex,
       imageUrl: imageUrl ?? this.imageUrl,
       foodId: foodId ?? this.foodId,
+      assigneeId: assigneeId ?? this.assigneeId,
+      assigneeName: assigneeName ?? this.assigneeName,
+      assigneeAvatarUrl: assigneeAvatarUrl ?? this.assigneeAvatarUrl,
     );
   }
 }

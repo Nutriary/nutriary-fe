@@ -9,10 +9,14 @@ class ShoppingTaskModel extends ShoppingTask {
     required super.orderIndex,
     super.imageUrl,
     super.foodId,
+    super.assigneeId,
+    super.assigneeName,
+    super.assigneeAvatarUrl,
   });
 
   factory ShoppingTaskModel.fromJson(Map<String, dynamic> json) {
     final food = json['food'];
+    final assignee = json['assignee'];
     return ShoppingTaskModel(
       id: json['id'],
       foodName: food != null ? food['name'] : (json['foodName'] ?? 'Unknown'),
@@ -21,6 +25,9 @@ class ShoppingTaskModel extends ShoppingTask {
       orderIndex: json['orderIndex'] ?? 0,
       imageUrl: food != null ? food['foodImageUrl'] : null,
       foodId: food != null ? food['id'] : null,
+      assigneeId: assignee != null ? assignee['id'] : null,
+      assigneeName: assignee != null ? assignee['name'] : null,
+      assigneeAvatarUrl: assignee != null ? assignee['avatarUrl'] : null,
     );
   }
 }

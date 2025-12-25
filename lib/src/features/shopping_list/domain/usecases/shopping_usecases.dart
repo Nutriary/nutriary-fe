@@ -94,6 +94,7 @@ class UpdateShoppingTaskUseCase
         taskId: params.taskId,
         isBought: params.isBought,
         quantity: params.quantity,
+        assigneeUserId: params.assigneeUserId,
       );
 }
 
@@ -101,13 +102,15 @@ class UpdateShoppingTaskParams extends Equatable {
   final int taskId;
   final bool? isBought;
   final String? quantity;
+  final int? assigneeUserId;
   const UpdateShoppingTaskParams({
     required this.taskId,
     this.isBought,
     this.quantity,
+    this.assigneeUserId,
   });
   @override
-  List<Object?> get props => [taskId, isBought, quantity];
+  List<Object?> get props => [taskId, isBought, quantity, assigneeUserId];
 }
 
 @lazySingleton

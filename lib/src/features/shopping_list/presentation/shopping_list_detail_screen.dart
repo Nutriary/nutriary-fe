@@ -358,14 +358,81 @@ class _ShoppingListDetailScreenState extends State<ShoppingListDetailScreen> {
                                               : Colors.black87,
                                         ),
                                       ),
-                                      Text(
-                                        'SL: $quantity',
-                                        style: TextStyle(
-                                          color: isBought
-                                              ? Colors.grey
-                                              : Colors.green[700],
-                                          fontWeight: FontWeight.w500,
-                                        ),
+                                      Row(
+                                        children: [
+                                          Text(
+                                            'SL: $quantity',
+                                            style: TextStyle(
+                                              color: isBought
+                                                  ? Colors.grey
+                                                  : Colors.green[700],
+                                              fontWeight: FontWeight.w500,
+                                            ),
+                                          ),
+                                          if (task.assigneeName != null) ...[
+                                            const SizedBox(width: 8),
+                                            Flexible(
+                                              child: Container(
+                                                padding:
+                                                    const EdgeInsets.symmetric(
+                                                      horizontal: 6,
+                                                      vertical: 2,
+                                                    ),
+                                                decoration: BoxDecoration(
+                                                  color: Colors.blue[50],
+                                                  borderRadius:
+                                                      BorderRadius.circular(8),
+                                                ),
+                                                child: Row(
+                                                  mainAxisSize:
+                                                      MainAxisSize.min,
+                                                  children: [
+                                                    CircleAvatar(
+                                                      radius: 8,
+                                                      backgroundColor:
+                                                          Colors.blue[200],
+                                                      backgroundImage:
+                                                          task.assigneeAvatarUrl !=
+                                                              null
+                                                          ? NetworkImage(
+                                                              task.assigneeAvatarUrl!,
+                                                            )
+                                                          : null,
+                                                      child:
+                                                          task.assigneeAvatarUrl ==
+                                                              null
+                                                          ? Text(
+                                                              task.assigneeName![0]
+                                                                  .toUpperCase(),
+                                                              style:
+                                                                  const TextStyle(
+                                                                    fontSize: 8,
+                                                                    color: Colors
+                                                                        .white,
+                                                                  ),
+                                                            )
+                                                          : null,
+                                                    ),
+                                                    const SizedBox(width: 4),
+                                                    Flexible(
+                                                      child: Text(
+                                                        task.assigneeName!,
+                                                        style: TextStyle(
+                                                          fontSize: 11,
+                                                          color:
+                                                              Colors.blue[700],
+                                                        ),
+                                                        overflow: TextOverflow
+                                                            .ellipsis,
+                                                        maxLines: 1,
+                                                      ),
+                                                    ),
+                                                  ],
+                                                ),
+                                              ),
+                                            ),
+                                          ],
+                                        ],
                                       ),
                                     ],
                                   ),
@@ -407,7 +474,18 @@ class _ShoppingListDetailScreenState extends State<ShoppingListDetailScreen> {
               ),
               const SizedBox(height: 16),
               ListTile(
-                leading: const Icon(LucideIcons.edit3, color: Colors.blue),
+                leading: const Icon(LucideIcons.userPlus, color: Colors.blue),
+                title: const Text('Giao việc'),
+                subtitle: task.assigneeName != null
+                    ? Text('Đang giao cho: ${task.assigneeName}')
+                    : null,
+                onTap: () {
+                  Navigator.pop(ctx);
+                  _showAssignMemberDialog(context, task);
+                },
+              ),
+              ListTile(
+                leading: const Icon(LucideIcons.edit3, color: Colors.orange),
                 title: const Text('Sửa số lượng'),
                 onTap: () {
                   Navigator.pop(ctx);
@@ -430,6 +508,115 @@ class _ShoppingListDetailScreenState extends State<ShoppingListDetailScreen> {
               ),
             ],
           ),
+        );
+      },
+    );
+  }
+
+  void _showAssignMemberDialog(BuildContext context, ShoppingTask task) {
+    final groupState = context.read<GroupBloc>().state;
+    final members = groupState.groupDetail?.members ?? [];
+
+    if (members.isEmpty) {
+      // Load group detail if not loaded
+      final groupId = groupState.selectedGroupId;
+      if (groupId != null) {
+        context.read<GroupBloc>().add(LoadGroupDetail(groupId));
+      }
+    }
+
+    showModalBottomSheet(
+      context: context,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (ctx) {
+        return BlocBuilder<GroupBloc, GroupState>(
+          builder: (context, state) {
+            final memberList = state.groupDetail?.members ?? [];
+
+            if (state.isDetailLoading) {
+              return const Padding(
+                padding: EdgeInsets.all(40),
+                child: Center(child: CircularProgressIndicator()),
+              );
+            }
+
+            if (memberList.isEmpty) {
+              return const Padding(
+                padding: EdgeInsets.all(40),
+                child: Center(child: Text('Không có thành viên trong nhóm')),
+              );
+            }
+
+            return ConstrainedBox(
+              constraints: BoxConstraints(
+                maxHeight: MediaQuery.of(context).size.height * 0.5,
+              ),
+              child: Padding(
+                padding: const EdgeInsets.symmetric(vertical: 20),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    const Text(
+                      'Chọn người thực hiện',
+                      style: TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                    const SizedBox(height: 16),
+                    Flexible(
+                      child: ListView.builder(
+                        shrinkWrap: true,
+                        itemCount: memberList.length,
+                        itemBuilder: (context, index) {
+                          final member = memberList[index];
+                          return ListTile(
+                            leading: CircleAvatar(
+                              backgroundColor: Colors.blue[100],
+                              child: Text(
+                                member.username[0].toUpperCase(),
+                                style: TextStyle(color: Colors.blue[700]),
+                              ),
+                            ),
+                            title: Text(
+                              member.username,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                            subtitle: Text(
+                              member.email,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                            trailing: task.assigneeId == member.userId
+                                ? const Icon(Icons.check, color: Colors.green)
+                                : null,
+                            onTap: () {
+                              Navigator.pop(ctx);
+                              context.read<ShoppingBloc>().add(
+                                AssignShoppingTask(
+                                  taskId: task.id,
+                                  listId: int.parse(widget.listId),
+                                  assigneeUserId: member.userId,
+                                ),
+                              );
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                SnackBar(
+                                  content: Text(
+                                    'Đã giao "${task.foodName}" cho ${member.username}',
+                                  ),
+                                ),
+                              );
+                            },
+                          );
+                        },
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            );
+          },
         );
       },
     );
