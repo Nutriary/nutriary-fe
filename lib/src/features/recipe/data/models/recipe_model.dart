@@ -24,7 +24,6 @@ class RecipeModel extends Recipe {
     // Parse ingredients array - handle null safely
     List<RecipeIngredient> ingredients = [];
     final ingredientsJson = json['ingredients'];
-    print('DEBUG Recipe ${json['id']} ingredients: $ingredientsJson');
     if (ingredientsJson != null && ingredientsJson is List) {
       ingredients = ingredientsJson.map<RecipeIngredient>((ing) {
         final ingFood = ing['food'];

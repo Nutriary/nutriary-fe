@@ -28,8 +28,8 @@ abstract class RegisterModule {
         },
         onError: (DioException e, handler) {
           if (kDebugMode) {
-            print('Dio Error: ${e.message}');
-            print('Response: ${e.response?.data}');
+            debugPrint('Dio Error: ${e.message}');
+            debugPrint('Response: ${e.response?.data}');
           }
           return handler.next(e);
         },

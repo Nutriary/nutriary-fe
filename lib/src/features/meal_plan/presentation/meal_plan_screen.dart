@@ -10,6 +10,8 @@ import 'package:nutriary_fe/src/features/recipe/presentation/bloc/recipe_bloc.da
 import 'package:nutriary_fe/src/features/recipe/presentation/bloc/recipe_state.dart';
 import 'package:nutriary_fe/src/features/recipe/presentation/bloc/recipe_event.dart';
 import 'package:nutriary_fe/src/features/recipe/presentation/recipe_screen.dart'; // For AddRecipeDialog
+import 'package:nutriary_fe/src/features/group/presentation/bloc/group_bloc.dart';
+import 'package:nutriary_fe/src/features/group/presentation/bloc/group_state.dart';
 
 class MealPlanScreen extends StatefulWidget {
   const MealPlanScreen({super.key});
@@ -24,161 +26,183 @@ class _MealPlanScreenState extends State<MealPlanScreen> {
   @override
   void initState() {
     super.initState();
-    // Initial load? Done in main.dart with DateTime.now(), but we might want to ensure _selectedDate is synced.
-    // If main.dart loaded with DateTime.now(), we are good.
-    // But if we navigate here later, we might need to load.
-    context.read<MealPlanBloc>().add(LoadMealPlan(_selectedDate));
+    final groupState = context.read<GroupBloc>().state;
+    context.read<MealPlanBloc>().add(
+      LoadMealPlan(_selectedDate, groupId: groupState.selectedGroupId),
+    );
   }
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: Colors.white,
-      appBar: AppBar(
-        title: const Text(
-          'Thực đơn',
-          style: TextStyle(fontWeight: FontWeight.bold, color: Colors.black87),
-        ),
+    return BlocListener<GroupBloc, GroupState>(
+      listenWhen: (previous, current) =>
+          previous.selectedGroupId != current.selectedGroupId,
+      listener: (context, state) {
+        context.read<MealPlanBloc>().add(
+          LoadMealPlan(_selectedDate, groupId: state.selectedGroupId),
+        );
+      },
+      child: Scaffold(
         backgroundColor: Colors.white,
-        elevation: 0,
-        centerTitle: true,
-        actions: [
-          IconButton(
-            icon: const Icon(
-              LucideIcons.lightbulb,
-              color: Colors.orange,
-            ), // Idea icon
-            onPressed: () => _showSuggestionsDialog(context),
+        appBar: AppBar(
+          title: const Text(
+            'Thực đơn',
+            style: TextStyle(
+              fontWeight: FontWeight.bold,
+              color: Colors.black87,
+            ),
           ),
-          IconButton(
-            icon: const Icon(LucideIcons.calendarDays, color: Colors.black87),
-            onPressed: () async {
-              final picked = await showDatePicker(
-                context: context,
-                initialDate: _selectedDate,
-                firstDate: DateTime(2020),
-                lastDate: DateTime(2030),
-              );
-              if (picked != null) {
-                setState(() => _selectedDate = picked);
-                context.read<MealPlanBloc>().add(LoadMealPlan(picked));
-              }
-            },
-          ),
-        ],
-      ),
-      floatingActionButton: FloatingActionButton.extended(
-        onPressed: () {
-          showDialog(
-            context: context,
-            builder: (_) => _AddMealDialog(date: _selectedDate),
-          );
-        },
-        backgroundColor: Colors.black87,
-        label: const Text('Thêm món', style: TextStyle(color: Colors.white)),
-        icon: const Icon(LucideIcons.plus, color: Colors.white),
-      ),
-      body: Column(
-        children: [
-          _buildDateHeader(),
-          const SizedBox(height: 10),
-          Expanded(
-            child: BlocBuilder<MealPlanBloc, MealPlanState>(
-              builder: (context, state) {
-                if (state.status == MealPlanStatus.loading &&
-                    state.mealPlans.isEmpty) {
-                  return const Center(child: CircularProgressIndicator());
+          backgroundColor: Colors.white,
+          elevation: 0,
+          centerTitle: true,
+          actions: [
+            IconButton(
+              icon: const Icon(
+                LucideIcons.lightbulb,
+                color: Colors.orange,
+              ), // Idea icon
+              onPressed: () => _showSuggestionsDialog(context),
+            ),
+            IconButton(
+              icon: const Icon(LucideIcons.calendarDays, color: Colors.black87),
+              onPressed: () async {
+                final picked = await showDatePicker(
+                  context: context,
+                  initialDate: _selectedDate,
+                  firstDate: DateTime(2020),
+                  lastDate: DateTime(2030),
+                );
+                if (picked != null) {
+                  setState(() => _selectedDate = picked);
+                  final groupState = context.read<GroupBloc>().state;
+                  context.read<MealPlanBloc>().add(
+                    LoadMealPlan(picked, groupId: groupState.selectedGroupId),
+                  );
                 }
+              },
+            ),
+          ],
+        ),
+        floatingActionButton: FloatingActionButton.extended(
+          onPressed: () {
+            showDialog(
+              context: context,
+              builder: (_) => _AddMealDialog(date: _selectedDate),
+            );
+          },
+          backgroundColor: Colors.black87,
+          label: const Text('Thêm món', style: TextStyle(color: Colors.white)),
+          icon: const Icon(LucideIcons.plus, color: Colors.white),
+        ),
+        body: Column(
+          children: [
+            _buildDateHeader(),
+            const SizedBox(height: 10),
+            Expanded(
+              child: BlocBuilder<MealPlanBloc, MealPlanState>(
+                builder: (context, state) {
+                  if (state.status == MealPlanStatus.loading &&
+                      state.mealPlans.isEmpty) {
+                    return const Center(child: CircularProgressIndicator());
+                  }
 
-                if (state.status == MealPlanStatus.failure &&
-                    state.mealPlans.isEmpty) {
-                  // If error
-                  return Center(child: Text('Lỗi: ${state.errorMessage}'));
-                }
+                  if (state.status == MealPlanStatus.failure &&
+                      state.mealPlans.isEmpty) {
+                    // If error
+                    return Center(child: Text('Lỗi: ${state.errorMessage}'));
+                  }
 
-                if (state.mealPlans.isEmpty &&
-                    state.status == MealPlanStatus.success) {
-                  return Center(
-                    child: Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        Icon(
-                          LucideIcons.chefHat,
-                          size: 64,
-                          color: Colors.grey[200],
-                        ),
-                        const SizedBox(height: 16),
-                        Text(
-                          'Chưa có thực đơn.\nLên kế hoạch ngay!',
-                          textAlign: TextAlign.center,
-                          style: TextStyle(
-                            color: Colors.grey[500],
-                            fontSize: 16,
+                  if (state.mealPlans.isEmpty &&
+                      state.status == MealPlanStatus.success) {
+                    return Center(
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Icon(
+                            LucideIcons.chefHat,
+                            size: 64,
+                            color: Colors.grey[200],
                           ),
+                          const SizedBox(height: 16),
+                          Text(
+                            'Chưa có thực đơn.\nLên kế hoạch ngay!',
+                            textAlign: TextAlign.center,
+                            style: TextStyle(
+                              color: Colors.grey[500],
+                              fontSize: 16,
+                            ),
+                          ),
+                        ],
+                      ),
+                    );
+                  }
+
+                  final sortedMeals = List.of(state.mealPlans);
+                  // Group meals by type manually to order them: Breakfast, Lunch, Dinner, Snack
+                  final breakfast = _filterMeals(sortedMeals, 'Bữa Sáng');
+                  final lunch = _filterMeals(sortedMeals, 'Bữa Trưa');
+                  final dinner = _filterMeals(sortedMeals, 'Bữa Tối');
+                  final snack = _filterMeals(sortedMeals, 'Bữa Phụ');
+
+                  return RefreshIndicator(
+                    onRefresh: () async {
+                      final groupState = context.read<GroupBloc>().state;
+                      context.read<MealPlanBloc>().add(
+                        LoadMealPlan(
+                          _selectedDate,
+                          groupId: groupState.selectedGroupId,
                         ),
+                      );
+                    },
+                    child: ListView(
+                      padding: const EdgeInsets.fromLTRB(16, 0, 16, 80),
+                      children: [
+                        if (breakfast.isNotEmpty)
+                          ..._buildTimelineSection(
+                            'Bữa Sáng',
+                            breakfast,
+                            Colors.orange,
+                            true,
+                          ),
+                        if (lunch.isNotEmpty)
+                          ..._buildTimelineSection(
+                            'Bữa Trưa',
+                            lunch,
+                            Colors.blue,
+                            true,
+                          ),
+                        if (dinner.isNotEmpty)
+                          ..._buildTimelineSection(
+                            'Bữa Tối',
+                            dinner,
+                            Colors.indigo,
+                            true,
+                          ),
+                        if (snack.isNotEmpty)
+                          ..._buildTimelineSection(
+                            'Bữa Phụ',
+                            snack,
+                            Colors.green,
+                            false,
+                          ),
                       ],
                     ),
                   );
-                }
-
-                final sortedMeals = List.of(state.mealPlans);
-                // Group meals by type manually to order them: Breakfast, Lunch, Dinner, Snack
-                final breakfast = _filterMeals(sortedMeals, 'Bữa Sáng');
-                final lunch = _filterMeals(sortedMeals, 'Bữa Trưa');
-                final dinner = _filterMeals(sortedMeals, 'Bữa Tối');
-                final snack = _filterMeals(sortedMeals, 'Bữa Phụ');
-
-                return RefreshIndicator(
-                  onRefresh: () async {
-                    context.read<MealPlanBloc>().add(
-                      LoadMealPlan(_selectedDate),
-                    );
-                  },
-                  child: ListView(
-                    padding: const EdgeInsets.fromLTRB(16, 0, 16, 80),
-                    children: [
-                      if (breakfast.isNotEmpty)
-                        ..._buildTimelineSection(
-                          'Bữa Sáng',
-                          breakfast,
-                          Colors.orange,
-                          true,
-                        ),
-                      if (lunch.isNotEmpty)
-                        ..._buildTimelineSection(
-                          'Bữa Trưa',
-                          lunch,
-                          Colors.blue,
-                          true,
-                        ),
-                      if (dinner.isNotEmpty)
-                        ..._buildTimelineSection(
-                          'Bữa Tối',
-                          dinner,
-                          Colors.indigo,
-                          true,
-                        ),
-                      if (snack.isNotEmpty)
-                        ..._buildTimelineSection(
-                          'Bữa Phụ',
-                          snack,
-                          Colors.green,
-                          false,
-                        ),
-                    ],
-                  ),
-                );
-              },
+                },
+              ),
             ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }
 
   void _showSuggestionsDialog(BuildContext context) {
     // Trigger load suggestions
-    context.read<MealPlanBloc>().add(LoadSuggestions());
+    final groupState = context.read<GroupBloc>().state;
+    context.read<MealPlanBloc>().add(
+      LoadSuggestions(groupId: groupState.selectedGroupId),
+    );
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
@@ -546,7 +570,14 @@ class _MealPlanScreenState extends State<MealPlanScreen> {
   }
 
   void _deleteMeal(MealPlan meal) {
-    context.read<MealPlanBloc>().add(DeleteMealPlan(meal.id, _selectedDate));
+    final groupState = context.read<GroupBloc>().state;
+    context.read<MealPlanBloc>().add(
+      DeleteMealPlan(
+        meal.id,
+        _selectedDate,
+        groupId: groupState.selectedGroupId,
+      ),
+    );
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         content: Text('Đã xoá "${meal.foodName}"'),
@@ -559,6 +590,7 @@ class _MealPlanScreenState extends State<MealPlanScreen> {
                 date: _selectedDate,
                 mealType: meal.mealType,
                 foodName: meal.foodName,
+                groupId: groupState.selectedGroupId,
               ),
             );
           },
@@ -591,12 +623,14 @@ class _AddMealDialogState extends State<_AddMealDialog> {
 
   void _add() {
     if (_foodController.text.isEmpty) return;
+    final groupState = context.read<GroupBloc>().state;
     context.read<MealPlanBloc>().add(
       AddMealPlan(
         date: widget.date,
         mealType: _selectedType,
         foodName: _foodController.text,
         recipeId: _selectedRecipeId,
+        groupId: groupState.selectedGroupId,
       ),
     );
   }

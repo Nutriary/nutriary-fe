@@ -5,13 +5,21 @@ import '../../../../core/usecase/usecase.dart';
 import '../entities/meal_plan.dart';
 import '../repositories/meal_plan_repository.dart';
 
+class GetMealPlanParams extends Equatable {
+  final DateTime date;
+  final int? groupId;
+  const GetMealPlanParams(this.date, {this.groupId});
+  @override
+  List<Object?> get props => [date, groupId];
+}
+
 @lazySingleton
-class GetMealPlanUseCase extends UseCase<List<MealPlan>, DateTime> {
+class GetMealPlanUseCase extends UseCase<List<MealPlan>, GetMealPlanParams> {
   final MealPlanRepository repository;
   GetMealPlanUseCase(this.repository);
   @override
-  Future<Either<Failure, List<MealPlan>>> call(DateTime date) =>
-      repository.getMealPlan(date);
+  Future<Either<Failure, List<MealPlan>>> call(GetMealPlanParams params) =>
+      repository.getMealPlan(params.date, params.groupId);
 }
 
 @lazySingleton
@@ -25,6 +33,7 @@ class AddMealPlanUseCase extends UseCase<void, AddMealPlanParams> {
         params.mealType,
         params.foodName,
         params.recipeId,
+        params.groupId,
       );
 }
 
@@ -33,14 +42,16 @@ class AddMealPlanParams extends Equatable {
   final String mealType;
   final String foodName;
   final int? recipeId;
+  final int? groupId;
   const AddMealPlanParams(
     this.date,
     this.mealType,
-    this.foodName, [
+    this.foodName, {
     this.recipeId,
-  ]);
+    this.groupId,
+  });
   @override
-  List<Object?> get props => [date, mealType, foodName, recipeId];
+  List<Object?> get props => [date, mealType, foodName, recipeId, groupId];
 }
 
 @lazySingleton
@@ -51,11 +62,19 @@ class DeleteMealPlanUseCase extends UseCase<void, int> {
   Future<Either<Failure, void>> call(int id) => repository.deleteMealPlan(id);
 }
 
+class GetSuggestionsParams extends Equatable {
+  final int? groupId;
+  const GetSuggestionsParams({this.groupId});
+  @override
+  List<Object?> get props => [groupId];
+}
+
 @lazySingleton
-class GetMealSuggestionsUseCase extends UseCase<List<String>, NoParams> {
+class GetMealSuggestionsUseCase
+    extends UseCase<List<String>, GetSuggestionsParams> {
   final MealPlanRepository repository;
   GetMealSuggestionsUseCase(this.repository);
   @override
-  Future<Either<Failure, List<String>>> call(NoParams params) =>
-      repository.getSuggestions();
+  Future<Either<Failure, List<String>>> call(GetSuggestionsParams params) =>
+      repository.getSuggestions(params.groupId);
 }

@@ -60,7 +60,7 @@ class ShoppingRemoteDataSourceImpl implements ShoppingRemoteDataSource {
   Future<void> updateShoppingList(int listId, String name, String? note) async {
     await _dio.put(
       '/shopping',
-      data: {'id': listId, 'name': name, 'note': note},
+      data: {'listId': listId, 'newName': name, 'newNote': note},
     );
   }
 
@@ -138,6 +138,16 @@ class ShoppingRepositoryImpl implements ShoppingRepository {
   final ShoppingRemoteDataSource _dataSource;
   ShoppingRepositoryImpl(this._dataSource);
 
+  /// Helper method to extract error message from DioException response
+  /// Handles both String and List<dynamic> message formats
+  String _extractErrorMessage(DioException e, String fallback) {
+    final message = e.response?.data['message'];
+    if (message is List) {
+      return message.join(', ');
+    }
+    return message?.toString() ?? fallback;
+  }
+
   @override
   Future<Either<Failure, List<ShoppingListEntity>>> getShoppingLists(
     int? groupId,
@@ -148,7 +158,7 @@ class ShoppingRepositoryImpl implements ShoppingRepository {
     } catch (e) {
       if (e is DioException) {
         return Left(
-          ServerFailure(e.response?.data['message'] ?? 'Failed to get lists'),
+          ServerFailure(_extractErrorMessage(e, 'Failed to get lists')),
         );
       }
       return Left(ServerFailure(e.toString()));
@@ -167,7 +177,7 @@ class ShoppingRepositoryImpl implements ShoppingRepository {
     } catch (e) {
       if (e is DioException) {
         return Left(
-          ServerFailure(e.response?.data['message'] ?? 'Failed to create list'),
+          ServerFailure(_extractErrorMessage(e, 'Failed to create list')),
         );
       }
       return Left(ServerFailure(e.toString()));
@@ -186,7 +196,7 @@ class ShoppingRepositoryImpl implements ShoppingRepository {
     } catch (e) {
       if (e is DioException) {
         return Left(
-          ServerFailure(e.response?.data['message'] ?? 'Failed to update list'),
+          ServerFailure(_extractErrorMessage(e, 'Failed to update list')),
         );
       }
       return Left(ServerFailure(e.toString()));
@@ -201,7 +211,7 @@ class ShoppingRepositoryImpl implements ShoppingRepository {
     } catch (e) {
       if (e is DioException) {
         return Left(
-          ServerFailure(e.response?.data['message'] ?? 'Failed to delete list'),
+          ServerFailure(_extractErrorMessage(e, 'Failed to delete list')),
         );
       }
       return Left(ServerFailure(e.toString()));
@@ -219,7 +229,7 @@ class ShoppingRepositoryImpl implements ShoppingRepository {
     } catch (e) {
       if (e is DioException) {
         return Left(
-          ServerFailure(e.response?.data['message'] ?? 'Failed to get tasks'),
+          ServerFailure(_extractErrorMessage(e, 'Failed to get tasks')),
         );
       }
       return Left(ServerFailure(e.toString()));
@@ -238,7 +248,7 @@ class ShoppingRepositoryImpl implements ShoppingRepository {
     } catch (e) {
       if (e is DioException) {
         return Left(
-          ServerFailure(e.response?.data['message'] ?? 'Failed to add task'),
+          ServerFailure(_extractErrorMessage(e, 'Failed to add task')),
         );
       }
       return Left(ServerFailure(e.toString()));
@@ -258,7 +268,7 @@ class ShoppingRepositoryImpl implements ShoppingRepository {
     } catch (e) {
       if (e is DioException) {
         return Left(
-          ServerFailure(e.response?.data['message'] ?? 'Failed to update task'),
+          ServerFailure(_extractErrorMessage(e, 'Failed to update task')),
         );
       }
       return Left(ServerFailure(e.toString()));
@@ -273,7 +283,7 @@ class ShoppingRepositoryImpl implements ShoppingRepository {
     } catch (e) {
       if (e is DioException) {
         return Left(
-          ServerFailure(e.response?.data['message'] ?? 'Failed to delete task'),
+          ServerFailure(_extractErrorMessage(e, 'Failed to delete task')),
         );
       }
       return Left(ServerFailure(e.toString()));
@@ -288,7 +298,7 @@ class ShoppingRepositoryImpl implements ShoppingRepository {
     } catch (e) {
       if (e is DioException) {
         return Left(
-          ServerFailure(e.response?.data['message'] ?? 'Failed to reorder'),
+          ServerFailure(_extractErrorMessage(e, 'Failed to reorder')),
         );
       }
       return Left(ServerFailure(e.toString()));

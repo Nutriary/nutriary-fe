@@ -58,14 +58,16 @@ class GroupRepositoryImpl implements GroupRepository {
   }
 
   @override
-  Future<Either<Failure, void>> addMember(String username) async {
+  Future<Either<Failure, void>> addMember(String username, int? groupId) async {
     try {
-      await remoteDataSource.addMember(username);
+      await remoteDataSource.addMember(username, groupId);
       return const Right(null);
     } on DioException catch (e) {
-      return Left(
-        ServerFailure(e.response?.data['message'] ?? 'Failed to add member'),
-      );
+      final message = e.response?.data['message'];
+      final errorMessage = message is List
+          ? message.join(', ')
+          : (message?.toString() ?? 'Failed to add member');
+      return Left(ServerFailure(errorMessage));
     } catch (e) {
       return Left(ServerFailure(e.toString()));
     }

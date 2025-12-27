@@ -22,11 +22,20 @@ class _FridgeItemDetailScreenState extends State<FridgeItemDetailScreen> {
     super.initState();
   }
 
-  void _showConsumeDialog(BuildContext context) {
-    showDialog(
+  Future<void> _showConsumeDialog(BuildContext context) async {
+    final result = await showDialog<bool>(
       context: context,
       builder: (ctx) => _ConsumeDialog(item: widget.item),
     );
+    if (result == true && mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Đã sử dụng ${widget.item.foodName}'),
+          backgroundColor: Colors.green,
+        ),
+      );
+      context.pop(); // Go back to fridge list
+    }
   }
 
   void _showEditDialog(BuildContext context) {
@@ -159,16 +168,12 @@ class _FridgeItemDetailScreenState extends State<FridgeItemDetailScreen> {
                         crossAxisAlignment: CrossAxisAlignment.end,
                         children: [
                           Text(
-                            '${item.quantity}',
+                            '${item.quantity} ${item.unitName}',
                             style: Theme.of(context).textTheme.headlineMedium
                                 ?.copyWith(
                                   color: Colors.green,
                                   fontWeight: FontWeight.bold,
                                 ),
-                          ),
-                          const Text(
-                            'Số lượng',
-                            style: TextStyle(color: Colors.grey),
                           ),
                         ],
                       ),
@@ -322,13 +327,8 @@ class _ConsumeDialogState extends State<_ConsumeDialog> {
         groupId: groupId,
       ),
     );
-    Navigator.pop(context);
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text('Đã sử dụng $_quantity ${widget.item.foodName}'),
-        backgroundColor: Colors.green,
-      ),
-    );
+    // Pop the dialog with result true to signal that consumption happened
+    Navigator.pop(context, true);
   }
 
   @override
@@ -339,25 +339,72 @@ class _ConsumeDialogState extends State<_ConsumeDialog> {
         mainAxisSize: MainAxisSize.min,
         children: [
           Text('Bạn đang dùng ${widget.item.foodName}'),
-          const SizedBox(height: 12),
-          TextField(
-            controller: _textController,
-            keyboardType: TextInputType.number,
-            onChanged: (val) {
-              final v = double.tryParse(val);
-              if (v != null) setState(() => _quantity = v);
-            },
+          const SizedBox(height: 16),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              IconButton(
+                onPressed: () {
+                  if (_quantity > 0) {
+                    setState(() {
+                      _quantity = (_quantity - 1).clamp(0.0, _maxQuantity);
+                      _textController.text = _quantity.toStringAsFixed(1);
+                    });
+                  }
+                },
+                icon: const Icon(LucideIcons.minus, color: Colors.red),
+                style: IconButton.styleFrom(
+                  backgroundColor: Colors.red.withOpacity(0.1),
+                ),
+              ),
+              const SizedBox(width: 16),
+              SizedBox(
+                width: 80,
+                child: TextField(
+                  controller: _textController,
+                  keyboardType: const TextInputType.numberWithOptions(
+                    decimal: true,
+                  ),
+                  textAlign: TextAlign.center,
+                  style: const TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.bold,
+                  ),
+                  decoration: InputDecoration(
+                    contentPadding: const EdgeInsets.symmetric(vertical: 12),
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                  ),
+                  onChanged: (val) {
+                    final v = double.tryParse(val);
+                    if (v != null) {
+                      setState(() => _quantity = v.clamp(0.0, _maxQuantity));
+                    }
+                  },
+                ),
+              ),
+              const SizedBox(width: 16),
+              IconButton(
+                onPressed: () {
+                  if (_quantity < _maxQuantity) {
+                    setState(() {
+                      _quantity = (_quantity + 1).clamp(0.0, _maxQuantity);
+                      _textController.text = _quantity.toStringAsFixed(1);
+                    });
+                  }
+                },
+                icon: const Icon(LucideIcons.plus, color: Colors.green),
+                style: IconButton.styleFrom(
+                  backgroundColor: Colors.green.withOpacity(0.1),
+                ),
+              ),
+            ],
           ),
-          Slider(
-            value: _quantity.clamp(0.0, _maxQuantity),
-            min: 0.0,
-            max: _maxQuantity,
-            onChanged: (v) {
-              setState(() {
-                _quantity = v;
-                _textController.text = v.toStringAsFixed(1);
-              });
-            },
+          const SizedBox(height: 8),
+          Text(
+            'Tối đa: ${_maxQuantity.toStringAsFixed(1)} ${widget.item.unitName}',
+            style: TextStyle(color: Colors.grey[600], fontSize: 12),
           ),
         ],
       ),

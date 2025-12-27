@@ -90,7 +90,10 @@ class GroupBloc extends Bloc<GroupEvent, GroupState> {
   }
 
   Future<void> _onAddMember(AddMember event, Emitter<GroupState> emit) async {
-    final result = await addMemberUseCase(event.username);
+    final groupId = event.groupId ?? state.selectedGroupId;
+    final result = await addMemberUseCase(
+      AddMemberParams(username: event.username, groupId: groupId),
+    );
     result.fold(
       (failure) => emit(
         state.copyWith(errorMessage: failure.message),

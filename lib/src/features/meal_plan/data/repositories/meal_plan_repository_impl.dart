@@ -7,15 +7,16 @@ import '../../domain/repositories/meal_plan_repository.dart';
 import '../models/meal_plan_model.dart';
 
 abstract class MealPlanRemoteDataSource {
-  Future<List<MealPlanModel>> getMealPlan(DateTime date);
+  Future<List<MealPlanModel>> getMealPlan(DateTime date, int? groupId);
   Future<void> addMealPlan(
     DateTime date,
     String mealType,
     String foodName,
     int? recipeId,
+    int? groupId,
   );
   Future<void> deleteMealPlan(int id);
-  Future<List<String>> getSuggestions();
+  Future<List<String>> getSuggestions(int? groupId);
 }
 
 @LazySingleton(as: MealPlanRemoteDataSource)
@@ -42,11 +43,14 @@ class MealPlanRemoteDataSourceImpl implements MealPlanRemoteDataSource {
   };
 
   @override
-  Future<List<MealPlanModel>> getMealPlan(DateTime date) async {
+  Future<List<MealPlanModel>> getMealPlan(DateTime date, int? groupId) async {
     final formattedDate = date.toIso8601String().split('T')[0];
     final response = await _dio.get(
       '/meal',
-      queryParameters: {'date': formattedDate},
+      queryParameters: {
+        'date': formattedDate,
+        if (groupId != null) 'groupId': groupId,
+      },
     );
     final responseData = response.data['data'];
     List<dynamic> list = [];
@@ -57,16 +61,10 @@ class MealPlanRemoteDataSourceImpl implements MealPlanRemoteDataSource {
     }
 
     return list.map((item) {
-      // Map mealType before creating model or inside model?
-      // Model expects 'name' from JSON to be raw from API.
-      // We can map fields here or just return Model and let Repo handle mapping?
-      // Legacy code returned mapped list.
-      // If we map here, we change the 'name' field in JSON.
       final apiType = item['name'] as String? ?? '';
       final uiType = _apiToMealType[apiType] ?? apiType;
       final newItem = Map<String, dynamic>.from(item);
-      newItem['name'] =
-          uiType; // Inject mapped type so Model.fromJson reads it as mealType
+      newItem['name'] = uiType;
       return MealPlanModel.fromJson(newItem);
     }).toList();
   }
@@ -77,6 +75,7 @@ class MealPlanRemoteDataSourceImpl implements MealPlanRemoteDataSource {
     String mealType,
     String foodName,
     int? recipeId,
+    int? groupId,
   ) async {
     final apiType = _mealTypeToApi[mealType] ?? mealType;
     await _dio.post(
@@ -86,6 +85,7 @@ class MealPlanRemoteDataSourceImpl implements MealPlanRemoteDataSource {
         'foodName': foodName,
         'timestamp': date.toIso8601String(),
         if (recipeId != null) 'recipeId': recipeId,
+        if (groupId != null) 'groupId': groupId,
       },
     );
   }
@@ -96,20 +96,20 @@ class MealPlanRemoteDataSourceImpl implements MealPlanRemoteDataSource {
   }
 
   @override
-  Future<List<String>> getSuggestions() async {
-    final response = await _dio.get('/meal/suggest');
+  Future<List<String>> getSuggestions(int? groupId) async {
+    final response = await _dio.get(
+      '/meal/suggest',
+      queryParameters: {if (groupId != null) 'groupId': groupId},
+    );
     final data = response.data['data'];
     if (data == null || data is! List) return [];
 
-    // API returns list of Recipe objects with nested 'food' containing 'name'
     return data.map<String>((recipe) {
       if (recipe is Map<String, dynamic>) {
-        // Try to get food name from nested food object
         final food = recipe['food'];
         if (food is Map<String, dynamic>) {
           return food['name']?.toString() ?? 'Món ăn';
         }
-        // Fallback to recipe name if no food
         return recipe['name']?.toString() ?? 'Món ăn';
       }
       return 'Món ăn';
@@ -123,9 +123,12 @@ class MealPlanRepositoryImpl implements MealPlanRepository {
   MealPlanRepositoryImpl(this._dataSource);
 
   @override
-  Future<Either<Failure, List<MealPlan>>> getMealPlan(DateTime date) async {
+  Future<Either<Failure, List<MealPlan>>> getMealPlan(
+    DateTime date,
+    int? groupId,
+  ) async {
     try {
-      final result = await _dataSource.getMealPlan(date);
+      final result = await _dataSource.getMealPlan(date, groupId);
       return Right(result);
     } catch (e) {
       if (e is DioException) {
@@ -145,9 +148,16 @@ class MealPlanRepositoryImpl implements MealPlanRepository {
     String mealType,
     String foodName,
     int? recipeId,
+    int? groupId,
   ) async {
     try {
-      await _dataSource.addMealPlan(date, mealType, foodName, recipeId);
+      await _dataSource.addMealPlan(
+        date,
+        mealType,
+        foodName,
+        recipeId,
+        groupId,
+      );
       return const Right(null);
     } catch (e) {
       if (e is DioException) {
@@ -175,9 +185,9 @@ class MealPlanRepositoryImpl implements MealPlanRepository {
   }
 
   @override
-  Future<Either<Failure, List<String>>> getSuggestions() async {
+  Future<Either<Failure, List<String>>> getSuggestions(int? groupId) async {
     try {
-      final result = await _dataSource.getSuggestions();
+      final result = await _dataSource.getSuggestions(groupId);
       return Right(result);
     } catch (e) {
       if (e is DioException) {

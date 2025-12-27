@@ -7,7 +7,7 @@ abstract class GroupRemoteDataSource {
   Future<List<GroupModel>> getGroups();
   Future<GroupDetailModel> getGroupDetail(int groupId);
   Future<void> createGroup(String name);
-  Future<void> addMember(String username);
+  Future<void> addMember(String username, int? groupId);
   Future<void> removeMember(int groupId, int userId);
 }
 
@@ -50,8 +50,11 @@ class GroupRemoteDataSourceImpl implements GroupRemoteDataSource {
   }
 
   @override
-  Future<void> addMember(String username) async {
-    await _dio.post('/user/group/add', data: {'username': username});
+  Future<void> addMember(String username, int? groupId) async {
+    await _dio.post(
+      '/user/group/add',
+      data: {'username': username, if (groupId != null) 'groupId': groupId},
+    );
   }
 
   @override

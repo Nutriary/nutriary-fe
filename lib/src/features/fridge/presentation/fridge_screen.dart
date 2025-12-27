@@ -250,7 +250,7 @@ class _FridgeScreenState extends State<FridgeScreen> {
   Widget _buildFridgeItemCard(BuildContext context, dynamic item, int index) {
     // using dynamic for item b/c I used List<dynamic> in grouping, but actually it is FridgeItem
     final foodName = item.foodName;
-    final quantity = item.quantity.toString();
+    final quantity = '${item.quantity} ${item.unitName}';
     final imageUrl = item.imageUrl;
     final useWithin = item.useWithin;
 
@@ -534,29 +534,6 @@ class _AddFridgeItemDialogState extends State<_AddFridgeItemDialog> {
               },
             ),
             const SizedBox(height: 12),
-            // Unit Dropdown
-            BlocBuilder<UnitBloc, UnitState>(
-              builder: (context, state) {
-                return DropdownButtonFormField<String>(
-                  value: _selectedUnit,
-                  decoration: const InputDecoration(
-                    labelText: 'Đơn vị',
-                    border: OutlineInputBorder(),
-                    prefixIcon: Icon(Icons.scale),
-                  ),
-                  items: state.units
-                      .map((u) => u.name)
-                      .toSet()
-                      .map(
-                        (name) =>
-                            DropdownMenuItem(value: name, child: Text(name)),
-                      )
-                      .toList(),
-                  onChanged: (v) => setState(() => _selectedUnit = v),
-                );
-              },
-            ),
-            const SizedBox(height: 12),
             // Category Dropdown
             BlocBuilder<FridgeBloc, FridgeState>(
               builder: (context, state) {
@@ -575,14 +552,52 @@ class _AddFridgeItemDialogState extends State<_AddFridgeItemDialog> {
               },
             ),
             const SizedBox(height: 12),
-            TextField(
-              controller: _qtyController,
-              decoration: const InputDecoration(
-                labelText: 'Số lượng',
-                prefixIcon: Icon(Icons.confirmation_number),
-                border: OutlineInputBorder(),
-              ),
-              keyboardType: TextInputType.number,
+            // Quantity and Unit in a Row
+            Row(
+              children: [
+                // Quantity TextField
+                Expanded(
+                  flex: 2,
+                  child: TextField(
+                    controller: _qtyController,
+                    decoration: const InputDecoration(
+                      labelText: 'Số lượng',
+                      prefixIcon: Icon(Icons.numbers),
+                      border: OutlineInputBorder(),
+                    ),
+                    keyboardType: const TextInputType.numberWithOptions(
+                      decimal: true,
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 12),
+                // Unit Dropdown
+                Expanded(
+                  flex: 2,
+                  child: BlocBuilder<UnitBloc, UnitState>(
+                    builder: (context, state) {
+                      return DropdownButtonFormField<String>(
+                        value: _selectedUnit,
+                        decoration: const InputDecoration(
+                          labelText: 'Đơn vị',
+                          border: OutlineInputBorder(),
+                        ),
+                        items: state.units
+                            .map((u) => u.name)
+                            .toSet()
+                            .map(
+                              (name) => DropdownMenuItem(
+                                value: name,
+                                child: Text(name),
+                              ),
+                            )
+                            .toList(),
+                        onChanged: (v) => setState(() => _selectedUnit = v),
+                      );
+                    },
+                  ),
+                ),
+              ],
             ),
             const SizedBox(height: 12),
             InkWell(

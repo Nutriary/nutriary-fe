@@ -27,7 +27,6 @@ class FoodRemoteDataSourceImpl implements FoodRemoteDataSource {
 
   @override
   Future<List<FoodModel>> getFoods() async {
-    print('DEBUG: Fetching foods with size=1000...');
     try {
       final response = await _dio.get('/food', queryParameters: {'size': 1000});
       // Backend returns: { "data": { "data": [List of foods], "totalItems": ... } }
@@ -43,13 +42,8 @@ class FoodRemoteDataSourceImpl implements FoodRemoteDataSource {
         list = [];
       }
 
-      print('DEBUG: Fetched ${list.length} foods.');
-      if (list.isNotEmpty) {
-        print('DEBUG: First food: ${list.first}');
-      }
       return list.map((json) => FoodModel.fromJson(json)).toList();
     } catch (e) {
-      print('DEBUG: Error fetching foods: $e');
       rethrow;
     }
   }

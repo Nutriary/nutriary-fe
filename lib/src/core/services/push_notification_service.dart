@@ -9,7 +9,7 @@ import 'package:injectable/injectable.dart';
 @pragma('vm:entry-point')
 Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
   await Firebase.initializeApp();
-  print('Handling background message: ${message.messageId}');
+  // Handle background message
 }
 
 @lazySingleton
@@ -45,13 +45,13 @@ class PushNotificationService {
   }
 
   Future<void> _requestPermission() async {
-    final settings = await _messaging.requestPermission(
+    await _messaging.requestPermission(
       alert: true,
       badge: true,
       sound: true,
       provisional: false,
     );
-    print('Permission status: ${settings.authorizationStatus}');
+    // Permission granted or denied
   }
 
   Future<void> _initializeLocalNotifications() async {
@@ -73,7 +73,6 @@ class PushNotificationService {
       initSettings,
       onDidReceiveNotificationResponse: (response) {
         // Handle notification tap
-        print('Notification tapped: ${response.payload}');
       },
     );
 
@@ -103,15 +102,13 @@ class PushNotificationService {
   Future<void> _sendTokenToServer(String token) async {
     try {
       await _dio.put('/user/fcm-token', data: {'fcmToken': token});
-      print('FCM token sent to server');
+      // FCM token sent to server
     } catch (e) {
-      print('Failed to send FCM token: $e');
+      // Failed to send FCM token - silent fail
     }
   }
 
   void _handleForegroundMessage(RemoteMessage message) {
-    print('Foreground message received: ${message.notification?.title}');
-
     final notification = message.notification;
     if (notification != null) {
       _localNotifications.show(
@@ -139,7 +136,6 @@ class PushNotificationService {
   }
 
   void _handleNotificationTap(RemoteMessage message) {
-    print('Notification tapped: ${message.data}');
     // Navigate to notification screen or specific content
   }
 

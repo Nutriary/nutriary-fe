@@ -24,9 +24,10 @@ class CreateGroup extends GroupEvent {
 
 class AddMember extends GroupEvent {
   final String username;
-  const AddMember(this.username);
+  final int? groupId;
+  const AddMember(this.username, {this.groupId});
   @override
-  List<Object?> get props => [username];
+  List<Object?> get props => [username, groupId];
 }
 
 class RemoveMember extends GroupEvent {

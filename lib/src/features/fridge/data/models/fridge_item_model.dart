@@ -5,6 +5,7 @@ class FridgeItemModel extends FridgeItem {
     required super.id,
     required super.foodName,
     required super.categoryName,
+    required super.unitName,
     required super.quantity,
     super.useWithin,
     super.imageUrl,
@@ -13,6 +14,7 @@ class FridgeItemModel extends FridgeItem {
   factory FridgeItemModel.fromJson(Map<String, dynamic> json) {
     final food = json['food'] ?? {};
     final category = food['category'] ?? {};
+    final unit = food['unit'] ?? {};
 
     // Parse quantity - MySQL decimal comes as string
     final rawQuantity = json['quantity'];
@@ -24,6 +26,7 @@ class FridgeItemModel extends FridgeItem {
       id: json['id'],
       foodName: food['name'] ?? json['foodName'] ?? 'Unknown',
       categoryName: category['name'] ?? 'Khác',
+      unitName: unit['name'] ?? 'Đơn vị',
       quantity: quantity,
       useWithin: json['use_within'] != null
           ? DateTime.tryParse(json['use_within'])

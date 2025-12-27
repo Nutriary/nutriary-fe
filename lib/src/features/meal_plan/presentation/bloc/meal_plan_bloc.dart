@@ -1,6 +1,5 @@
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:injectable/injectable.dart';
-import '../../../../core/usecase/usecase.dart';
 import '../../domain/usecases/meal_plan_usecases.dart';
 import 'meal_plan_event.dart';
 import 'meal_plan_state.dart';
@@ -31,7 +30,9 @@ class MealPlanBloc extends Bloc<MealPlanEvent, MealPlanState> {
     emit(
       state.copyWith(status: MealPlanStatus.loading, selectedDate: event.date),
     );
-    final result = await getMealPlanUseCase(event.date);
+    final result = await getMealPlanUseCase(
+      GetMealPlanParams(event.date, groupId: event.groupId),
+    );
     result.fold(
       (failure) => emit(
         state.copyWith(
@@ -55,7 +56,8 @@ class MealPlanBloc extends Bloc<MealPlanEvent, MealPlanState> {
         event.date,
         event.mealType,
         event.foodName,
-        event.recipeId,
+        recipeId: event.recipeId,
+        groupId: event.groupId,
       ),
     );
     result.fold(
@@ -64,7 +66,7 @@ class MealPlanBloc extends Bloc<MealPlanEvent, MealPlanState> {
       ),
       (_) {
         emit(state.copyWith(isLoadingAction: false));
-        add(LoadMealPlan(event.date)); // Refresh list
+        add(LoadMealPlan(event.date, groupId: event.groupId)); // Refresh list
       },
     );
   }
@@ -81,7 +83,9 @@ class MealPlanBloc extends Bloc<MealPlanEvent, MealPlanState> {
       ),
       (_) {
         emit(state.copyWith(isLoadingAction: false));
-        add(LoadMealPlan(event.currentDate)); // Refresh list
+        add(
+          LoadMealPlan(event.currentDate, groupId: event.groupId),
+        ); // Refresh list
       },
     );
   }
@@ -90,7 +94,9 @@ class MealPlanBloc extends Bloc<MealPlanEvent, MealPlanState> {
     LoadSuggestions event,
     Emitter<MealPlanState> emit,
   ) async {
-    final result = await getMealSuggestionsUseCase(NoParams());
+    final result = await getMealSuggestionsUseCase(
+      GetSuggestionsParams(groupId: event.groupId),
+    );
     result.fold(
       (failure) => null, // Ignore sugg fail
       (suggestions) => emit(state.copyWith(suggestions: suggestions)),

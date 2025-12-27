@@ -4,6 +4,7 @@ class FridgeItem extends Equatable {
   final int id;
   final String foodName;
   final String categoryName;
+  final String unitName;
   final num quantity;
   final DateTime? useWithin;
   final String? imageUrl;
@@ -12,6 +13,7 @@ class FridgeItem extends Equatable {
     required this.id,
     required this.foodName,
     required this.categoryName,
+    required this.unitName,
     required this.quantity,
     this.useWithin,
     this.imageUrl,
@@ -22,6 +24,7 @@ class FridgeItem extends Equatable {
     id,
     foodName,
     categoryName,
+    unitName,
     quantity,
     useWithin,
     imageUrl,

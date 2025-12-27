@@ -22,9 +22,9 @@ class NotificationService {
       );
 
       if (settings.authorizationStatus == AuthorizationStatus.authorized) {
-        print('User granted permission');
+        // User granted permission
       } else {
-        print('User declined or has not accepted permission');
+        // User declined or has not accepted permission
         // Even if declined, we proceed initialization to avoid errors
       }
 
@@ -43,7 +43,6 @@ class NotificationService {
       // Get Token
       final token = await _fcm.getToken();
       if (token != null) {
-        print('FCM Token: $token');
         _sendTokenToBackend(token);
       }
 
@@ -75,7 +74,7 @@ class NotificationService {
         }
       });
     } catch (e) {
-      print("NotificationService init error: $e");
+      // NotificationService init error - silent fail
     }
   }
 
@@ -86,7 +85,7 @@ class NotificationService {
       // But typically dio interceptor attaches token if available.
       await _dio.put('/user/fcm-token', data: {'token': token});
     } catch (e) {
-      print('Failed to send FCM token: $e');
+      // Failed to send FCM token - silent fail
     }
   }
 }
